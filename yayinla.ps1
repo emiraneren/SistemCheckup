@@ -68,8 +68,12 @@ if ($Taslak) { Write-Host 'Taslak mod: hiçbir şey gönderilmedi (manifest.json
 $md = "# Değişiklikler`n`n" + (($gecmis | ForEach-Object { "## $($_.surum) — $($_.tarih)`n`n" + ((@($_.notlar) | ForEach-Object { "- $_" }) -join "`n") }) -join "`n`n") + "`n"
 [IO.File]::WriteAllText((Join-Path $kok 'DEGISIKLIKLER.md'), $md, $utf8)
 
+# Mesajlar dosya üzerinden verilir: PowerShell 5.1 tırnak içeren argümanları git/gh'ye bozuk geçirir
+$mesajDosyasi = Join-Path $dist 'commit_mesaji.txt'
+[IO.File]::WriteAllText($mesajDosyasi, "Sürüm $Surum`n`n" + (($Notlar | ForEach-Object { "- $_" }) -join "`n") + "`n", $utf8)
 git add -A
-git commit -q -m "Sürüm $Surum" -m (($Notlar | ForEach-Object { "- $_" }) -join "`n")
+git commit -q -F $mesajDosyasi
+if ($LASTEXITCODE -ne 0) { throw 'Commit oluşturulamadı.' }
 git tag -a $etiket -m "Sistem Checkup $Surum"
 $dal = git rev-parse --abbrev-ref HEAD
 git push -q origin $dal
@@ -88,6 +92,8 @@ Zaten kuruluysa indirmenize gerek yok: Sistem Checkup yeni sürümü kendisi bil
 
 Ayrıntılar için **BENIOKU.txt** dosyasına bakın.
 "@
-gh release create $etiket $zip (Join-Path $dist 'BENIOKU.txt') --repo $ayar.repo --title "Sistem Checkup $Surum" --notes $notMetni --latest
+$notDosyasi = Join-Path $dist 'release_notu.md'
+[IO.File]::WriteAllText($notDosyasi, $notMetni, $utf8)
+gh release create $etiket $zip (Join-Path $dist 'BENIOKU.txt') --repo $ayar.repo --title "Sistem Checkup $Surum" --notes-file $notDosyasi --latest
 if ($LASTEXITCODE -ne 0) { throw 'GitHub Release oluşturulamadı.' }
 Write-Host "Yayınlandı: https://github.com/$($ayar.repo)/releases/tag/$etiket" -ForegroundColor Green

@@ -544,18 +544,20 @@ namespace SistemCheckup
 
         Control BantKur()
         {
-            bant.Dock = DockStyle.Top;
-            bant.Height = Tema.O(46);
-            bant.BackColor = Color.FromArgb(253, 241, 221);
-            bant.Padding = new Padding(Tema.O(28), Tema.O(6), Tema.O(24), Tema.O(6));
-            bant.Visible = false;
-            lblBant.Dock = DockStyle.Fill;
-            lblBant.TextAlign = ContentAlignment.MiddleLeft;
-            lblBant.ForeColor = Color.FromArgb(110, 70, 0);
-            lblBant.Font = Tema.Kalin;
             Button b = Tema.Buton("Şimdi güncelle", true);
             b.Dock = DockStyle.Right;
             b.Click += (s, e) => GuncelleyiciAc(true);
+            bant.Dock = DockStyle.Top;
+            bant.Padding = new Padding(Tema.O(28), Tema.O(7), Tema.O(24), Tema.O(7));
+            bant.Height = b.PreferredSize.Height + bant.Padding.Vertical;
+            bant.BackColor = Color.FromArgb(253, 241, 221);
+            bant.Visible = false;
+            lblBant.Dock = DockStyle.Fill;
+            lblBant.TextAlign = ContentAlignment.MiddleLeft;
+            lblBant.AutoEllipsis = true;
+            lblBant.Padding = new Padding(0, 0, Tema.O(12), 0);
+            lblBant.ForeColor = Color.FromArgb(110, 70, 0);
+            lblBant.Font = Tema.Kalin;
             bant.Controls.Add(lblBant);
             bant.Controls.Add(b);
             return bant;
@@ -719,7 +721,7 @@ namespace SistemCheckup
                         TaramaBaslat(false);
                     return;
                 }
-                lblBaslangicHata.Text = "Tarama başlatılamadı: " + ex.Message;
+                BaslangicMesaji("Tarama başlatılamadı: " + ex.Message, true);
                 return;
             }
 
@@ -791,7 +793,7 @@ namespace SistemCheckup
             }
             catch { }
             TaramaBitti();
-            lblBaslangicHata.Text = "Tarama beklenmedik şekilde durdu. Tekrar deneyin; sorun sürerse \"Yönetici izniyle tara\" seçeneğini kapatıp deneyin.";
+            BaslangicMesaji("Tarama beklenmedik şekilde durdu. Tekrar deneyin; sorun sürerse \"Yönetici izniyle tara\" seçeneğini kapatıp deneyin.", true);
             Goster(sayfaBaslangic);
         }
 
@@ -824,16 +826,22 @@ namespace SistemCheckup
                 case "IPTAL":
                     bitti = true;
                     TaramaBitti();
-                    lblBaslangicHata.Text = "Tarama iptal edildi.";
+                    BaslangicMesaji("Tarama iptal edildi.", false);
                     Goster(sayfaBaslangic);
                     break;
                 case "HATA":
                     bitti = true;
                     TaramaBitti();
-                    lblBaslangicHata.Text = "Tarama sırasında hata oluştu: " + (p.Length > 1 ? p[1] : "");
+                    BaslangicMesaji("Tarama sırasında hata oluştu: " + (p.Length > 1 ? p[1] : ""), true);
                     Goster(sayfaBaslangic);
                     break;
             }
+        }
+
+        void BaslangicMesaji(string metin, bool hata)
+        {
+            lblBaslangicHata.ForeColor = hata ? Tema.Kirmizi : Tema.Soluk;
+            lblBaslangicHata.Text = metin;
         }
 
         void Kayit(string s)
@@ -882,7 +890,7 @@ namespace SistemCheckup
         void SonuclariGoster()
         {
             object v = SonucuYukle();
-            if (v == null) { lblBaslangicHata.Text = "Sonuç dosyası okunamadı."; Goster(sayfaBaslangic); return; }
+            if (v == null) { BaslangicMesaji("Sonuç dosyası okunamadı.", true); Goster(sayfaBaslangic); return; }
 
             sayfaSonuc.SuspendLayout();
             foreach (Control c in sayfaSonuc.Controls.Cast<Control>().ToList()) c.Dispose();

@@ -1,5 +1,10 @@
 # Değişiklikler
 
+## 1.1.1 — 2026-10-15
+
+- "Yeni sürüm hazır" bandındaki düğme artık tam görünüyor
+- Tarama iptal edildiğinde mesaj hata gibi kırmızı değil, normal gösteriliyor
+
 ## 1.1.0 — 2026-10-15
 
 - Yeni pencereli arayüz: tarama ilerlemesi canlı görünüyor, sonuçlar uygulama içinde gösteriliyor
@@ -12,8 +17,14 @@
 - Güncelleyici artık tek bir zip paketi indiriyor ve atlanan tüm sürümlerin notlarını gösteriyor
 - İşlemci ısınma testi artık frekansa bakıyor; arka plandaki programlar yüzünden yanlış uyarı vermiyor
 
-## 1.0.2 1.0.1 1.0.0 — 2026-10-15 2026-10-15 2026-10-15
+## 1.0.2 — 2026-10-15
 
 - Güncelleyici yeni sürümleri artık beklemeden görüyor.
+
+## 1.0.1 — 2026-10-15
+
 - Güncelleyici penceresinde küçük görünüm düzeltmeleri.
+
+## 1.0.0 — 2026-10-15
+
 - İlk sürüm: disk, ekran kartı, bellek ve sürücü kontrolü, hız testleri ve otomatik güncelleme.

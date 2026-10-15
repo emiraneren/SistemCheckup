@@ -1,19 +1,20 @@
 {
-    "surum":  "1.1.0",
-    "etiket":  "v1.1.0",
+    "surum":  "1.1.1",
+    "etiket":  "v1.1.1",
     "tarih":  "2026-10-15",
     "notlar":  [
-                   "Yeni pencereli arayüz: tarama ilerlemesi canlı görünüyor, sonuçlar uygulama içinde gösteriliyor",
-                   "Hızlı tarama (30-60 sn) ve tam tarama (hız testleriyle, yaklaşık 2 dk) seçeneği",
-                   "Tek puan yerine iki puan: Donanım sağlığı ve Bakım/güncellemeler; açıklamalar daha anlaşılır",
-                   "Her tarama saklanıyor; önceki taramaya göre nelerin değiştiği ve hangi sorunların çözüldüğü gösteriliyor",
-                   "Dizüstü bilgisayarlar için pil sağlığı (kalan kapasite ve şarj döngüsü)",
-                   "İlk açılışta masaüstü ve Başlat menüsü kısayolu seçeneği",
-                   "Kaldir.exe ile programı tüm dosyaları ve kısayollarıyla kaldırma",
-                   "Güncelleyici artık tek bir zip paketi indiriyor ve atlanan tüm sürümlerin notlarını gösteriyor",
-                   "İşlemci ısınma testi artık frekansa bakıyor; arka plandaki programlar yüzünden yanlış uyarı vermiyor"
+                   "\"Yeni sürüm hazır\" bandındaki düğme artık tam görünüyor",
+                   "Tarama iptal edildiğinde mesaj hata gibi kırmızı değil, normal gösteriliyor"
                ],
     "gecmis":  [
+                   {
+                       "surum":  "1.1.1",
+                       "tarih":  "2026-10-15",
+                       "notlar":  [
+                                      "\"Yeni sürüm hazır\" bandındaki düğme artık tam görünüyor",
+                                      "Tarama iptal edildiğinde mesaj hata gibi kırmızı değil, normal gösteriliyor"
+                                  ]
+                   },
                    {
                        "surum":  "1.1.0",
                        "tarih":  "2026-10-15",
@@ -30,36 +31,31 @@
                                   ]
                    },
                    {
-                       "value":  [
-                                     {
-                                         "surum":  "1.0.2",
-                                         "tarih":  "2026-10-15",
-                                         "notlar":  [
-                                                        "Güncelleyici yeni sürümleri artık beklemeden görüyor."
-                                                    ]
-                                     },
-                                     {
-                                         "surum":  "1.0.1",
-                                         "tarih":  "2026-10-15",
-                                         "notlar":  [
-                                                        "Güncelleyici penceresinde küçük görünüm düzeltmeleri."
-                                                    ]
-                                     },
-                                     {
-                                         "surum":  "1.0.0",
-                                         "tarih":  "2026-10-15",
-                                         "notlar":  [
-                                                        "İlk sürüm: disk, ekran kartı, bellek ve sürücü kontrolü, hız testleri ve otomatik güncelleme."
-                                                    ]
-                                     }
-                                 ],
-                       "Count":  3
+                       "surum":  "1.0.2",
+                       "tarih":  "2026-10-15",
+                       "notlar":  [
+                                      "Güncelleyici yeni sürümleri artık beklemeden görüyor."
+                                  ]
+                   },
+                   {
+                       "surum":  "1.0.1",
+                       "tarih":  "2026-10-15",
+                       "notlar":  [
+                                      "Güncelleyici penceresinde küçük görünüm düzeltmeleri."
+                                  ]
+                   },
+                   {
+                       "surum":  "1.0.0",
+                       "tarih":  "2026-10-15",
+                       "notlar":  [
+                                      "İlk sürüm: disk, ekran kartı, bellek ve sürücü kontrolü, hız testleri ve otomatik güncelleme."
+                                  ]
                    }
                ],
     "paket":  {
-                  "ad":  "SistemCheckup-v1.1.0.zip",
-                  "sha256":  "d80f223c037dade7a379334d736cddfd0943b63f9253f70cf18c623b8d499a43",
-                  "boyut":  143196
+                  "ad":  "SistemCheckup-v1.1.1.zip",
+                  "sha256":  "580287ba838f6d5b61cda47baa87bf5af28678b9f1bbab6926debd285dc3971c",
+                  "boyut":  143259
               },
     "dosyalar":  [
                      {
@@ -84,17 +80,17 @@
                      },
                      {
                          "hedef":  "Guncelleyici.exe",
-                         "sha256":  "a8375f7b85f7679a7eb7ca93d9f3f2cbde69344a479d5d83469a37b3f4880d39",
+                         "sha256":  "5ff00a650006141d981ab0ea3a732e073bb9558f72aaac9af7241ff42955cab1",
                          "boyut":  54272
                      },
                      {
                          "hedef":  "Kaldir.exe",
-                         "sha256":  "9d62e28d91e3edd95ef0cd8dbb07516252e1469c60a14534bc0859d635ea6404",
+                         "sha256":  "c053a862ab6fb638ebfbb7bede93357fffe4590ead0e1e6cda9bd1bfd86de4b8",
                          "boyut":  37376
                      },
                      {
                          "hedef":  "SistemCheckup.exe",
-                         "sha256":  "3bd74509f96a1dc7f5170cf59ba39a2ab81fef9dc58a8b2c63ba3f1ac85e509d",
+                         "sha256":  "a78fe574032eef594c361feaedc6a44db5d0cdcaed3b3788291e241c3f0c5318",
                          "boyut":  76800
                      }
                  ]
