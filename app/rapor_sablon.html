@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sistem Checkup</title>
+<style>
+:root {
+  --bg: #f4f5f7; --panel: #ffffff; --panel2: #f8f9fb; --line: #e3e6eb;
+  --text: #16181d; --muted: #646b78; --accent: #3a5bd9;
+  --ok: #1f8a4c; --ok-bg: #e6f4ec; --warn: #a86400; --warn-bg: #fdf1dd;
+  --bad: #c62f2f; --bad-bg: #fbe7e7; --info: #2f63b8; --info-bg: #e7eefa;
+  --bar: #3a5bd9; --bar-bg: #e8ebf2;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1c2029; --line: #2a2f3a;
+    --text: #e8eaef; --muted: #9098a7; --accent: #7d97ff;
+    --ok: #4cc584; --ok-bg: #15291f; --warn: #f0b04a; --warn-bg: #2d2414; --bad: #ff6b6b; --bad-bg: #321a1c;
+    --info: #78a6ff; --info-bg: #17223a; --bar: #7d97ff; --bar-bg: #262b37;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1115; --panel: #171a21; --panel2: #1c2029; --line: #2a2f3a;
+  --text: #e8eaef; --muted: #9098a7; --accent: #7d97ff;
+  --ok: #4cc584; --ok-bg: #15291f; --warn: #f0b04a; --warn-bg: #2d2414; --bad: #ff6b6b; --bad-bg: #321a1c;
+  --info: #78a6ff; --info-bg: #17223a; --bar: #7d97ff; --bar-bg: #262b37;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Segoe UI", system-ui, sans-serif; }
+a { color: var(--accent); }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px 48px; }
+nav { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+nav .wrap { display: flex; gap: 4px; padding-top: 10px; padding-bottom: 10px; overflow-x: auto; align-items: center; scrollbar-width: none; }
+nav .wrap::-webkit-scrollbar { display: none; }
+nav a { text-decoration: none; color: var(--muted); padding: 6px 12px; border-radius: 8px; white-space: nowrap; font-weight: 500; }
+nav a:hover { background: var(--panel); color: var(--text); }
+nav .sp { flex: 1; }
+nav button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; white-space: nowrap; }
+header.hero { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center; padding: 32px 0 20px; }
+.ring { position: relative; width: 132px; height: 132px; }
+.ring svg { transform: rotate(-90deg); }
+.ring .val { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+.ring .val b { font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums; }
+.ring .val span { font-size: 12px; color: var(--muted); display: block; }
+h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.01em; }
+.sub { color: var(--muted); }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-weight: 600; font-size: 13px; }
+.chip.bad { background: var(--bad-bg); color: var(--bad); } .chip.warn { background: var(--warn-bg); color: var(--warn); }
+.chip.ok { background: var(--ok-bg); color: var(--ok); } .chip.info { background: var(--info-bg); color: var(--info); }
+.chip.muted { background: var(--panel); color: var(--muted); border: 1px solid var(--line); font-weight: 500; }
+section { margin-top: 32px; }
+h2 { font-size: 18px; margin: 0 0 12px; display: flex; align-items: center; gap: 10px; }
+h2 small { font-size: 13px; color: var(--muted); font-weight: 400; }
+h3 { font-size: 15px; margin: 0 0 10px; }
+.grid { display: grid; gap: 12px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.finding { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: start; padding: 14px 16px; border-left: 4px solid transparent; }
+.finding.bad { border-left-color: var(--bad); } .finding.warn { border-left-color: var(--warn); }
+.finding.info { border-left-color: var(--info); } .finding.ok { border-left-color: var(--ok); }
+.finding .ic { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
+.ic.bad { background: var(--bad-bg); color: var(--bad); } .ic.warn { background: var(--warn-bg); color: var(--warn); }
+.ic.info { background: var(--info-bg); color: var(--info); } .ic.ok { background: var(--ok-bg); color: var(--ok); }
+.finding .t { font-weight: 600; } .finding .d { color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+.finding .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.btn { display: inline-block; text-decoration: none; background: var(--accent); color: #fff; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+:root[data-theme="dark"] .btn { color: #0f1115; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn { color: #0f1115; } }
+.btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+.stack { display: flex; flex-direction: column; gap: 8px; }
+.okfold summary { cursor: pointer; color: var(--muted); padding: 8px 2px; }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.big { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
+.big small { font-size: 13px; font-weight: 500; color: var(--muted); }
+.label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+.stat .label { margin-bottom: 4px; }
+.hw-title { font-weight: 600; font-size: 15px; margin: 2px 0 2px; overflow-wrap: anywhere; }
+.bar { height: 8px; border-radius: 4px; background: var(--bar-bg); overflow: hidden; }
+.bar > i { display: block; height: 100%; background: var(--bar); border-radius: 4px; }
+.bar.warn > i { background: var(--warn); } .bar.bad > i { background: var(--bad); }
+.brow { display: grid; grid-template-columns: 150px 1fr 110px; gap: 12px; align-items: center; padding: 6px 0; }
+.brow .v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.brow .v small { color: var(--muted); font-weight: 400; display: block; font-size: 11px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl { overflow-x: auto; padding: 4px 6px; }
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill.ok { background: var(--ok-bg); color: var(--ok); } .pill.warn { background: var(--warn-bg); color: var(--warn); }
+.pill.bad { background: var(--bad-bg); color: var(--bad); } .pill.info { background: var(--info-bg); color: var(--info); }
+.muted { color: var(--muted); }
+.note { background: var(--panel2); border: 1px dashed var(--line); border-radius: 10px; padding: 12px 14px; color: var(--muted); }
+.spark { width: 100%; height: 70px; display: block; }
+.diskhead { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 12px; }
+.nvbox { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+.nvbox .arrow { font-size: 22px; color: var(--muted); }
+footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+code { background: var(--panel2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 12.5px; }
+@media (max-width: 860px) { .g3, .g4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .g2, .g3, .g4 { grid-template-columns: 1fr; }
+  header.hero { grid-template-columns: 1fr; justify-items: start; }
+  .brow { grid-template-columns: 1fr 90px; } .brow .bar { grid-column: 1 / -1; grid-row: 2; }
+  .finding { grid-template-columns: 28px 1fr; } .finding .a { grid-column: 2; }
+}
+@media print { nav { display: none; } body { background: #fff; } .card { break-inside: avoid; } }
+</style>
+</head>
+<body>
+<nav><div class="wrap">
+  <a href="#ozet">Özet</a><a href="#donanim">Donanım</a><a href="#islemci">İşlemci</a><a href="#ekran">Ekran Kartı</a>
+  <a href="#bellek">Bellek</a><a href="#depolama">Depolama</a><a href="#suruculer">Sürücüler</a><a href="#kararlilik">Kararlılık</a>
+  <span class="sp"></span><button id="tema" type="button">Tema</button><button type="button" onclick="window.print()">Yazdır / PDF</button>
+</div></nav>
+<div class="wrap" id="app"></div>
+
+<script>
+const D = /*__VERI__*/null;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = (n, d = 0) => n == null || isNaN(n) ? '—' : Number(n).toLocaleString('tr-TR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const arr = x => x == null ? [] : Array.isArray(x) ? x : [x];
+const ICON = { bad: '!', warn: '!', info: 'i', ok: '✓' };
+const SEV = { bad: 'Sorun', warn: 'Uyarı', info: 'Bilgi', ok: 'İyi' };
+function link(u, text, cls = 'btn') {
+  if (!u) return '';
+  const ext = /^https?:/.test(u);
+  return `<a class="${cls}" href="${esc(u)}"${ext ? ' target="_blank" rel="noopener"' : ''}>${esc(text || 'Aç')}</a>`;
+}
+function kv(rows) {
+  return '<dl class="kv">' + rows.filter(r => r[1] != null && r[1] !== '').map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join('') + '</dl>';
+}
+function stat(label, value, unit = '', extra = '') {
+  return `<div class="card stat"><div class="label">${esc(label)}</div><div class="big">${value}${unit ? ` <small>${esc(unit)}</small>` : ''}</div>${extra ? `<div class="muted" style="margin-top:4px">${extra}</div>` : ''}</div>`;
+}
+function bar(pct, cls = '') { return `<div class="bar ${cls}"><i style="width:${Math.max(1, Math.min(100, pct || 0))}%"></i></div>`; }
+
+function render() {
+  if (!D) { document.getElementById('app').innerHTML = '<p style="padding:40px 0">Rapor verisi bulunamadı. Bu dosya bir şablondur; <code>SistemCheckup.exe</code> çalıştırın.</p>'; return; }
+  const B = arr(D.bulgular);
+  const n = s => B.filter(b => b.seviye === s).length;
+  const score = D.puan;
+  const sc = score >= 80 ? 'var(--ok)' : score >= 60 ? 'var(--warn)' : 'var(--bad)';
+  const verdict = score >= 85 ? 'Sisteminiz genel olarak sağlıklı' : score >= 65 ? 'Sisteminiz çalışıyor, ama ilgilenilmesi gereken noktalar var' : 'Sisteminizde dikkat edilmesi gereken sorunlar var';
+  const C = 2 * Math.PI * 56;
+  const S = D.sistem, cpu = D.cpu, ram = D.ram;
+  const gpus = arr(D.gpu).filter(g => !g.sanal);
+  let h = '';
+
+  // ---------- hero
+  h += `<header class="hero" id="ozet">
+    <div class="ring"><svg width="132" height="132"><circle cx="66" cy="66" r="56" fill="none" stroke="var(--bar-bg)" stroke-width="12"/>
+      <circle cx="66" cy="66" r="56" fill="none" stroke="${sc}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C * score / 100} ${C}"/></svg>
+      <div class="val"><div><b>${score}</b><span>/ 100</span></div></div></div>
+    <div><h1>${esc(verdict)}</h1>
+      <div class="sub">${esc(S.bilgisayar)} · ${esc(S.isletimSistemi)} ${esc(S.surum)} · ${esc(D.meta.tarih)} tarihli tarama (${D.meta.sureSn} sn)</div>
+      <div class="chips">
+        ${n('bad') ? `<span class="chip bad">${n('bad')} sorun</span>` : ''}
+        ${n('warn') ? `<span class="chip warn">${n('warn')} uyarı</span>` : ''}
+        <span class="chip ok">${n('ok')} sağlıklı</span>
+        ${n('info') ? `<span class="chip info">${n('info')} bilgi</span>` : ''}
+        <span class="chip muted">${D.meta.yonetici ? 'Yönetici modu · tam veri' : 'Sınırlı mod · yönetici değil'}</span>
+      </div></div></header>`;
+
+  // ---------- findings
+  const act = B.filter(b => b.seviye !== 'ok');
+  const fin = b => `<div class="card finding ${b.seviye}"><div class="ic ${b.seviye}">${ICON[b.seviye]}</div>
+      <div><div class="k">${esc(b.kategori)} · ${SEV[b.seviye]}</div><div class="t">${esc(b.baslik)}</div>${b.detay ? `<div class="d">${esc(b.detay)}</div>` : ''}</div>
+      <div class="a">${link(b.link, b.linkMetin, b.seviye === 'ok' || b.seviye === 'info' ? 'btn ghost' : 'btn')}</div></div>`;
+  h += `<section><h2>Yapılması gerekenler <small>${act.length ? 'önem sırasına göre' : 'her şey yolunda'}</small></h2><div class="stack">${act.map(fin).join('') || '<div class="note">Herhangi bir sorun veya uyarı bulunmadı.</div>'}</div>
+    <details class="okfold" open><summary>Sağlıklı bulunan ${n('ok')} kontrol</summary><div class="stack">${B.filter(b => b.seviye === 'ok').map(fin).join('')}</div></details></section>`;
+
+  // ---------- hardware overview
+  const g0 = gpus[0];
+  const dsum = arr(D.diskler).map(d => `${d.ad} (${fmt(d.boyutGB)} GB)`).join('<br>');
+  h += `<section id="donanim"><h2>Donanım özeti</h2><div class="grid g4">
+    <div class="card"><div class="label">İşlemci</div><div class="hw-title">${esc(cpu.ad)}</div><div class="muted">${cpu.cekirdek} çekirdek / ${cpu.izlek} izlek</div></div>
+    <div class="card"><div class="label">Ekran kartı</div><div class="hw-title">${esc(g0 ? g0.ad : '—')}</div><div class="muted">${g0 && g0.vramGB ? fmt(g0.vramGB, 0) + ' GB VRAM' : ''}</div></div>
+    <div class="card"><div class="label">Bellek</div><div class="hw-title">${fmt(ram.toplamGB)} GB ${esc(arr(ram.moduller)[0]?.tip || '')}</div><div class="muted">${arr(ram.moduller)[0]?.ayarliMHz || '—'} MHz · ${esc(ram.kanal)}</div></div>
+    <div class="card"><div class="label">Anakart</div><div class="hw-title">${esc(S.anakartModel)}</div><div class="muted">${esc(S.anakartUretici)}</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card"><h3>Sistem</h3>${kv([
+      ['İşletim sistemi', esc(`${S.isletimSistemi} ${S.surum}`)], ['Derleme', esc(S.derleme)], ['Çalışma süresi', esc(S.calismaSuresi)],
+      ['Son Windows güncellemesi', esc(S.sonWinGuncelleme)], ['Antivirüs', S.antivirus ? (S.antivirus.gercekZamanli ? 'Defender açık' : 'Gerçek zamanlı koruma kapalı') + ` · tanımlar ${esc(S.antivirus.imzaTarihi)}` : null],
+      ['Sistem', esc(`${S.sistemUretici} ${S.sistemModel}`)],
+    ])}</div>
+    <div class="card"><h3>Anakart ve depolama</h3>${kv([
+      ['Anakart', esc(`${S.anakartUretici} ${S.anakartModel}`)], ['BIOS', esc(`${S.biosSurum} (${S.biosTarih})`)], ['Diskler', dsum],
+      ['Ağ', arr(D.ag).map(a => `${esc(a.aciklama)} · ${esc(a.hiz)} · ${a.durum === 'Up' ? 'bağlı' : 'bağlı değil'}`).join('<br>') || '—'],
+      ['Destek', link(S.destekLinki, 'Anakart sürücü sayfası', 'btn ghost')],
+    ])}</div>
+  </div>
+  ${arr(D.termal).length ? `<div class="grid g4" style="margin-top:12px">${arr(D.termal).map(t => stat(t.ad, fmt(t.sicaklik), '°C')).join('')}</div>` : ''}
+  </section>`;
+
+  // ---------- CPU
+  const T = cpu.test;
+  h += `<section id="islemci"><h2>İşlemci <small>${esc(cpu.ad)}</small></h2>`;
+  if (T) {
+    const s = arr(T.ornekler).slice(1), mx = Math.max(...s) * 1.12 || 1, mn = 0;
+    const pts = s.map((v, i) => `${(i / Math.max(1, s.length - 1)) * 300},${70 - ((v - mn) / (mx - mn)) * 64}`).join(' ');
+    h += `<div class="grid g4">
+      ${stat('Tek çekirdek', fmt(T.tekCekirdek), 'puan')}
+      ${stat('Çok çekirdek', fmt(T.cokCekirdek), 'puan', `tek çekirdeğin ${fmt(T.olcekleme, 1)} katı`)}
+      ${stat('Yük altında hız', fmt(T.yukFrekansMHz), 'MHz', `taban ${fmt(cpu.tabanMHz)} MHz`)}
+      ${stat('10 sn yük düşüşü', '%' + fmt(T.dususYuzde, 1), '', T.dususYuzde >= 12 ? '<span style="color:var(--warn)">ısıl kısıtlama olabilir</span>' : 'kararlı')}
+    </div>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card"><h3>Tam yükte performans (saniye saniye)</h3>
+        <svg class="spark" viewBox="0 0 300 72" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="var(--bar)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+        <div class="muted" style="font-size:12px;margin-top:6px">Çizgi düz kalıyorsa soğutma yeterli demektir. Belirgin düşüş, işlemcinin ısınıp kendini yavaşlattığını gösterir.</div></div>
+      <div class="card"><h3>Özellikler</h3>${kv([
+        ['Çekirdek / izlek', `${cpu.cekirdek} / ${cpu.izlek}`], ['Taban hızı', fmt(cpu.tabanMHz) + ' MHz'], ['L2 / L3 önbellek', `${fmt(cpu.l2MB, 1)} MB / ${fmt(cpu.l3MB, 1)} MB`],
+        ['Soket', esc(cpu.soket)], ['Sanallaştırma (VT)', cpu.sanallastirma ? 'Açık' : 'Kapalı <span class="muted">(Hyper-V/WSL açıksa böyle görünür)</span>'], ['Tarama anındaki yük', '%' + cpu.yuk],
+      ])}</div></div>
+      <p class="muted" style="font-size:12px">Puanlar bu uygulamaya özeldir; aynı bilgisayarda zaman içinde karşılaştırmak için kullanın.</p>`;
+  } else {
+    h += `<div class="card">${kv([['Çekirdek / izlek', `${cpu.cekirdek} / ${cpu.izlek}`], ['Taban hızı', fmt(cpu.tabanMHz) + ' MHz'], ['L3 önbellek', fmt(cpu.l3MB, 1) + ' MB'], ['Soket', esc(cpu.soket)]])}</div>
+      <div class="note" style="margin-top:12px">Performans testi bu taramada atlandı.</div>`;
+  }
+  h += `</section>`;
+
+  // ---------- GPU
+  h += `<section id="ekran"><h2>Ekran kartı</h2>`;
+  for (const g of gpus) {
+    const c = g.canli;
+    h += `<div class="card" style="margin-bottom:12px"><div class="diskhead"><div><div class="hw-title">${esc(g.ad)}</div><div class="muted">${esc(g.uretici)} · ${esc(g.cozunurluk || '')}${g.yenileme ? ' @ ' + g.yenileme + ' Hz' : ''}</div></div>
+      <span class="pill ${g.durum === 'OK' ? 'ok' : 'bad'}">${g.durum === 'OK' ? 'Çalışıyor' : esc(g.durum)}</span></div>`;
+    if (c) {
+      const vr = c.vramToplamMB ? 100 * c.vramKullanilanMB / c.vramToplamMB : 0;
+      h += `<div class="grid g4">
+        ${stat('Sıcaklık', fmt(c.sicaklik), '°C')}
+        ${stat('Kullanım', '%' + fmt(c.kullanim))}
+        ${stat('Güç', fmt(c.guc, 0), 'W', `limit ${fmt(c.gucLimit, 0)} W`)}
+        ${stat('VRAM', fmt(c.vramKullanilanMB / 1024, 1), `/ ${fmt(c.vramToplamMB / 1024, 0)} GB`, bar(vr))}
+      </div><div style="margin-top:12px">${kv([
+        ['Çekirdek saati', `${fmt(c.saatMHz)} MHz (en fazla ${fmt(c.maxSaatMHz)} MHz)`], ['Bellek saati', fmt(c.belSaatMHz) + ' MHz'],
+        ['PCIe bağlantısı', `Gen ${c.pcieGen} x${c.pcieGenislik} (destekleyen Gen ${c.pcieGenMax} x${c.pcieGenislikMax})${c.pcieGen < c.pcieGenMax ? ' <span class="muted">— boştayken nesil düşmesi normaldir</span>' : ''}`],
+        ['Fan', c.fan != null ? '%' + fmt(c.fan) + (c.fan === 0 ? ' <span class="muted">(düşük yükte fanlar durur, normal)</span>' : '') : '—'],
+        ['Sürücü', `${esc(c.surucu)} <span class="muted">(${esc(g.surucu)}, ${esc(g.surucuTarih)})</span>`], ['VBIOS', esc(c.vbios)],
+      ])}</div>`;
+    } else {
+      h += kv([['VRAM', g.vramGB ? fmt(g.vramGB, 0) + ' GB' : '—'], ['Sürücü', `${esc(g.surucu)} (${esc(g.surucuTarih)})`]]);
+    }
+    h += `</div>`;
+  }
+  if (!gpus.length) h += `<div class="note">Fiziksel ekran kartı bulunamadı.</div>`;
+  h += `</section>`;
+
+  // ---------- RAM
+  const mods = arr(ram.moduller);
+  h += `<section id="bellek"><h2>Bellek (RAM)</h2><div class="grid g4">
+    ${stat('Toplam', fmt(ram.toplamGB), 'GB', `${mods.length} / ${ram.yuvaSayisi || '?'} yuva dolu`)}
+    ${stat('Kullanımda', fmt(ram.kullanilanGB, 1), 'GB', bar(ram.kullanimYuzde, ram.kullanimYuzde >= 90 ? 'bad' : ram.kullanimYuzde >= 75 ? 'warn' : ''))}
+    ${stat('Hız', fmt(mods[0]?.ayarliMHz), 'MHz', esc(ram.kanal))}
+    ${stat('Kopyalama hızı', ram.bantGBs ? fmt(ram.bantGBs, 1) : '—', 'GB/s', 'çok izlekli bellek kopyalama')}
+  </div>
+  <div class="card tbl" style="margin-top:12px"><table><thead><tr><th>Yuva</th><th>Üretici</th><th>Parça no</th><th>Kapasite</th><th>Tip</th><th>Çalışan hız</th><th>Nominal</th></tr></thead><tbody>
+    ${mods.map(m => `<tr><td>${esc(m.yuva)}</td><td>${esc(m.uretici)}</td><td>${esc(m.parcaNo)}</td><td class="num">${fmt(m.kapasiteGB)} GB</td><td>${esc(m.tip)}</td>
+      <td class="num">${fmt(m.ayarliMHz)} MHz</td><td class="num">${m.nominalMHz ? fmt(m.nominalMHz) + ' MHz' : '—'}</td></tr>`).join('')}
+  </tbody></table></div>
+  ${ram.tanilama ? `<p class="muted">Son Windows Bellek Tanılama: ${esc(ram.tanilama.tarih)} — ${ram.tanilama.hataVar ? '<b style="color:var(--bad)">hata bulundu</b>' : 'hata yok'}</p>`
+    : `<p class="muted">RAM'i derinlemesine test etmek için Başlat'a <code>mdsched</code> yazıp Windows Bellek Tanılama'yı çalıştırabilirsiniz (yeniden başlatır).</p>`}
+  </section>`;
+
+  // ---------- disks
+  const REF = { NVMe: { seq: 7000, q1: 90, t8: 700, w: 300 }, SSD: { seq: 560, q1: 45, t8: 300, w: 120 }, HDD: { seq: 250, q1: 2, t8: 4, w: 3 } };
+  h += `<section id="depolama"><h2>Depolama <small>okuma / yazma hızları önbelleksiz ölçüldü (1 GB test dosyası)</small></h2>`;
+  for (const d of arr(D.diskler)) {
+    const ref = d.arayuz === 'NVMe' ? REF.NVMe : d.tip === 'HDD' ? REF.HDD : REF.SSD;
+    const t = d.test;
+    const healthy = d.saglik === 'Healthy';
+    h += `<div class="card" style="margin-bottom:12px"><div class="diskhead"><div><div class="hw-title">${esc(d.ad)}</div>
+      <div class="muted">${esc(d.tip)} · ${esc(d.arayuz)} · ${fmt(d.boyutGB)} GB · firmware ${esc(d.firmware)}</div></div>
+      <span class="pill ${healthy ? 'ok' : 'bad'}">${healthy ? 'Sağlıklı' : esc(d.saglik)}</span></div>
+      <div class="grid g4" style="margin-bottom:12px">
+        ${stat('Ömür kullanımı', d.asinma != null ? '%' + d.asinma : '—', '', d.asinma != null ? bar(d.asinma, d.asinma >= 90 ? 'bad' : d.asinma >= 70 ? 'warn' : '') : 'yönetici izni gerekli')}
+        ${stat('Sıcaklık', d.sicaklik != null ? fmt(d.sicaklik) : '—', d.sicaklik != null ? '°C' : '', d.maksSicaklik ? `en yüksek ${d.maksSicaklik} °C` : '')}
+        ${stat('Çalışma süresi', d.calismaSaati != null ? fmt(d.calismaSaati) : '—', d.calismaSaati != null ? 'saat' : '')}
+        ${stat('Hata', d.okumaHatasi != null ? fmt((d.okumaHatasi || 0) + (d.yazmaHatasi || 0)) : '—', '', 'düzeltilemeyen okuma/yazma')}
+      </div>`;
+    if (t) {
+      const row = (lbl, v, r, sub) => `<div class="brow"><div>${lbl}</div>${bar(100 * v / r)}<div class="v">${fmt(v, v < 100 ? 1 : 0)} MB/s${sub ? `<small>${sub}</small>` : ''}</div></div>`;
+      h += `<h3>Hız testi (${esc(t.birim)})</h3>
+        ${row('Sıralı okuma', t.siraliOkuma, ref.seq)}${row('Sıralı yazma', t.siraliYazma, ref.seq)}
+        ${row('4K rastgele okuma', t.r4kOkumaQ1, ref.q1, fmt(t.r4kOkumaQ1Iops) + ' IOPS · Q1T1')}
+        ${row('4K okuma (8 izlek)', t.r4kOkumaT8, ref.t8, fmt(t.r4kOkumaT8Iops) + ' IOPS')}
+        ${row('4K rastgele yazma', t.r4kYazmaQ1, ref.w, fmt(t.r4kYazmaQ1Iops) + ' IOPS · Q1T1')}`;
+    } else {
+      h += `<div class="note">${d.arayuz === 'USB' ? 'USB disk olduğu için hız testi yapılmadı.' : 'Bu diskte hız testi yapılmadı.'}</div>`;
+    }
+    const vols = arr(d.birimler);
+    if (vols.length) {
+      h += `<h3 style="margin-top:14px">Bölümler</h3>` + vols.map(v => {
+        const used = 100 - (v.bosYuzde ?? 0);
+        return `<div class="brow"><div><b>${esc(v.harf)}</b> ${esc(v.etiket)}</div>${bar(used, v.bosYuzde < 10 ? 'bad' : v.bosYuzde < 20 ? 'warn' : '')}<div class="v">${fmt(v.bosGB)} GB boş<small>${fmt(v.boyutGB)} GB toplam</small></div></div>`;
+      }).join('');
+    }
+    h += `</div>`;
+  }
+  h += `</section>`;
+
+  // ---------- drivers
+  const SR = D.suruculer || {};
+  const nv = SR.nvidia;
+  h += `<section id="suruculer"><h2>Sürücüler <small>${fmt(SR.toplam)} yüklü sürücü tarandı</small></h2>`;
+  if (nv) {
+    const st = nv.guncel === true ? 'ok' : nv.guncel === false ? 'warn' : 'info';
+    h += `<div class="card" style="margin-bottom:12px"><h3>NVIDIA ekran kartı sürücüsü</h3><div class="nvbox">
+      <div><div class="label">Kurulu</div><div class="big">${esc(nv.kurulu)}</div></div><div class="arrow">→</div>
+      <div><div class="label">En son</div><div class="big">${esc(nv.enSon || '?')}</div>${nv.tarih ? `<div class="muted">${esc(nv.tarih)}</div>` : ''}</div>
+      <div style="flex:1"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill ${st}">${nv.guncel === true ? 'Güncel' : nv.guncel === false ? 'Güncelleme var' : 'Kontrol edilemedi'}</span>
+        ${nv.guncel === false && nv.indir ? link(nv.indir, 'Doğrudan indir (.exe)') : ''}${link(nv.detay, nv.guncel === false ? 'Sürüm sayfası' : 'Sürücü sayfası', 'btn ghost')}</div>
+    </div></div>`;
+  }
+  const wu = arr(SR.windowsUpdate);
+  h += `<div class="card" style="margin-bottom:12px"><div class="diskhead"><h3 style="margin:0">Windows Update'te bekleyen sürücüler</h3>${wu.length ? link('ms-settings:windowsupdate-optionalupdates', 'İsteğe bağlı güncellemeleri aç') : ''}</div>
+    ${SR.wuHata ? `<div class="note">Windows Update sorgulanamadı: ${esc(SR.wuHata)}</div>` :
+      wu.length ? `<div class="tbl"><table><thead><tr><th>Aygıt</th><th>Sağlayıcı</th><th>Tür</th><th>Sürüm tarihi</th></tr></thead><tbody>${wu.map(u => `<tr><td>${esc(u.model)}<div class="muted" style="font-size:12px">${esc(u.baslik)}</div></td><td>${esc(u.saglayici)}</td><td>${esc(u.sinif)}</td><td class="num">${esc(u.tarih && u.tarih > '1990' ? u.tarih : '—')}</td></tr>`).join('')}</tbody></table></div>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Ayarlar → Windows Update → Gelişmiş seçenekler → İsteğe bağlı güncelleştirmeler → Sürücü güncelleştirmeleri</p>`
+      : '<div class="muted">Bekleyen sürücü güncellemesi yok.</div>'}</div>`;
+
+  const bad = arr(SR.sorunluAygitlar);
+  if (bad.length) {
+    h += `<div class="card" style="margin-bottom:12px;border-color:var(--bad)"><h3>Sürücüsü eksik veya hatalı aygıtlar</h3><div class="tbl"><table><thead><tr><th>Aygıt</th><th>Sorun</th><th>Donanım kimliği</th><th>Çözüm</th></tr></thead><tbody>
+      ${bad.map(a => `<tr><td><b>${esc(a.ad)}</b><div class="muted" style="font-size:12px">${esc(a.sinif)}</div></td><td><span class="pill bad">Kod ${esc(a.kod)}</span><div style="margin-top:4px">${esc(a.aciklama)}</div></td><td><code>${esc(a.donanimId)}</code></td>
+        <td><div style="display:flex;gap:6px;flex-wrap:wrap">${arr(a.linkler).map((l, i) => link(l.u, l.m, i === 0 ? 'btn' : 'btn ghost')).join('')}</div></td></tr>`).join('')}
+    </tbody></table></div></div>`;
+  }
+
+  const imp = arr(SR.onemli);
+  h += `<div class="card tbl" style="margin-bottom:12px"><h3 style="padding:6px 4px 0">Önemli sürücüler</h3><table><thead><tr><th>Tür</th><th>Aygıt</th><th>Sağlayıcı</th><th>Sürüm</th><th>Tarih</th><th>Durum</th><th></th></tr></thead><tbody>
+    ${imp.map(d => `<tr><td>${esc(d.tur)}</td><td>${esc(d.ad)}</td><td>${esc(d.saglayici)}</td><td class="num">${esc(d.surum)}</td><td class="num">${d.yasGun != null && d.tarih > '1999' ? esc(d.tarih) : '—'}</td>
+      <td><span class="pill ${d.durum}">${esc(d.durumMetin)}</span></td><td>${link(d.link, d.durum === 'warn' ? 'Güncelle' : 'Kontrol et', d.durum === 'warn' ? 'btn' : 'btn ghost')}</td></tr>`).join('')}
+  </tbody></table></div>`;
+
+  const old = arr(SR.eski);
+  if (old.length) {
+    h += `<details class="card"><summary style="cursor:pointer"><b>3 yıldan eski diğer sürücüler (${old.length})</b> <span class="muted">— çoğu zaman sorun değildir</span></summary><div class="tbl" style="margin-top:10px"><table><thead><tr><th>Aygıt</th><th>Sağlayıcı</th><th>Sürüm</th><th>Tarih</th><th></th></tr></thead><tbody>
+      ${old.map(d => `<tr><td>${esc(d.ad)}</td><td>${esc(d.saglayici)}</td><td class="num">${esc(d.surum)}</td><td class="num">${esc(d.tarih)}</td><td>${link(d.link, 'Ara', 'btn ghost')}</td></tr>`).join('')}
+    </tbody></table></div></details>`;
+  }
+  h += `<p class="muted" style="font-size:12px">NVIDIA sürücüsü doğrudan NVIDIA sunucusundan, diğerleri Windows Update kataloğundan kontrol edilir. Realtek ağ/ses gibi sürücülerin en doğru sürümü anakart üreticisinin destek sayfasındadır.</p></section>`;
+
+  // ---------- stability
+  const O = D.olaylar || {};
+  const ev = (lbl, o, lvl, desc) => {
+    const c = o?.adet || 0;
+    const cls = c === 0 ? 'ok' : lvl;
+    return `<div class="card stat"><div class="label">${esc(lbl)}</div><div class="big" style="color:var(--${cls === 'ok' ? 'text' : cls})">${fmt(c)}</div><div class="muted" style="margin-top:4px">${c ? 'son: ' + esc(o.son) : esc(desc)}</div></div>`;
+  };
+  h += `<section id="kararlilik"><h2>Kararlılık <small>son 30 gün</small></h2><div class="grid g4">
+    ${ev('Mavi ekran (BSOD)', O.maviEkran, 'bad', 'kayıt yok')}
+    ${ev('Beklenmeyen kapanma', O.beklenmeyenKapanma, 'warn', 'kayıt yok')}
+    ${ev('Donanım hatası (WHEA)', O.donanimHatasi, 'bad', 'kayıt yok')}
+    ${ev('Disk hatası', O.diskHatasi, 'warn', 'kayıt yok')}
+    ${ev('Ekran sürücüsü çökmesi', O.ekranSurucusu, 'warn', 'kayıt yok')}
+    ${ev('Düzeltilmiş donanım uyarısı', O.duzeltilenDonanim, 'info', 'kayıt yok')}
+    ${ev('Uygulama çökmesi', O.uygulamaCokmesi, 'info', 'kayıt yok')}
+    <div class="card"><div class="label">En çok çöken uygulamalar</div>${arr(O.enCokCoken).map(a => `<div style="display:flex;justify-content:space-between;gap:8px"><span style="overflow-wrap:anywhere">${esc(a.uygulama)}</span><b>${a.adet}</b></div>`).join('') || '<div class="muted">yok</div>'}</div>
+  </div></section>`;
+
+  h += `<footer>Sistem Checkup ${esc(D.meta.surum)} · Yeniden taramak için <code>SistemCheckup.exe</code>, güncellemek için <code>Guncelleyici.exe</code> dosyasını çalıştırın. Raporlar <code>Raporlar</code> klasörüne kaydedilir.
+    ${D.meta.yonetici ? '' : '<br>Not: Yönetici izni verilmediği için SSD ömür/sıcaklık bilgileri eksik.'}<br>İşlemci çekirdek sıcaklığını Windows doğrudan vermez; ayrıntılı sensör takibi için HWiNFO kullanabilirsiniz.</footer>`;
+
+  document.getElementById('app').innerHTML = h;
+}
+
+const temaBtn = document.getElementById('tema');
+function temaUygula(t) { if (t) document.documentElement.setAttribute('data-theme', t); else document.documentElement.removeAttribute('data-theme'); }
+try { temaUygula(localStorage.getItem('sc-tema')); } catch (e) {}
+temaBtn.addEventListener('click', () => {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark' || (!document.documentElement.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+  const t = dark ? 'light' : 'dark';
+  temaUygula(t);
+  try { localStorage.setItem('sc-tema', t); } catch (e) {}
+});
+render();
+</script>
+</body>
+</html>

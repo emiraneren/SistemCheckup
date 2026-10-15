@@ -1,0 +1,5 @@
+dist/
+obj/
+Raporlar/
+app/surum.json
+*.old
