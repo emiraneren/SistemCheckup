@@ -1,5 +1,10 @@
 # Değişiklikler
 
+## 1.3.1 — 2026-10-16
+
+- Düzeltme: NVIDIA ekran kartı olmayan bilgisayarlarda tarama "Parametre hatalı / The parameter is incorrect" hatasıyla duruyordu
+- Bir kontrol beklenmedik şekilde başarısız olursa artık tarama durmuyor; o kontrol atlanıp raporda belirtiliyor
+
 ## 1.3.0 — 2026-10-16
 
 - Klasör sadeleştirildi: artık yalnızca SistemCheckup.exe (açmanız gereken), Kaldir.exe ve BENIOKU.txt görünüyor; güncelleyici app klasörüne taşındı

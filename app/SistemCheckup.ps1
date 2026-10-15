@@ -27,10 +27,16 @@ $Utf8 = New-Object Text.UTF8Encoding($false)
 function Ilerleme($satir) {
     if ($IlerlemeDosyasi) { try { [IO.File]::AppendAllText($IlerlemeDosyasi, ($satir -replace "[\r\n]+", ' ') + "`n", $Utf8) } catch {} }
 }
+# Beklenmeyen bir hata tek bir kontrolü atlatır, taramanın tamamını durdurmaz.
+# Atlanan kontroller raporda "Bazı kontroller yapılamadı" olarak gösterilir.
+$script:Atlananlar = New-Object System.Collections.ArrayList
 trap {
-    Ilerleme "HATA|$($_.Exception.Message)"
-    Write-Host "Beklenmeyen hata: $($_.Exception.Message)" -ForegroundColor Red
-    exit 1
+    $satir = $_.InvocationInfo.ScriptLineNumber
+    $mesaj = "$($_.Exception.Message)" -replace "[\r\n]+", ' '
+    [void]$script:Atlananlar.Add([ordered]@{ adim = "$($script:AdimMetni)"; satir = $satir; mesaj = $mesaj })
+    Ilerleme "BILGI|Bir kontrol atlandı: $mesaj"
+    Write-Host "        Bir kontrol atlandı (satır $satir): $mesaj" -ForegroundColor DarkYellow
+    continue
 }
 
 function Test-Yonetici {
@@ -65,6 +71,7 @@ function Iptal {
 function Adim($metin) {
     Iptal
     $script:AdimNo++
+    $script:AdimMetni = $metin
     Write-Host ("[{0,2}/{1}] {2}" -f $script:AdimNo, $ToplamAdim, $metin) -ForegroundColor Cyan
     Ilerleme "ADIM|$($script:AdimNo)|$ToplamAdim|$metin"
 }
@@ -89,8 +96,13 @@ function YasGun($d) { if ($d) { try { return [int]((Get-Date) - [datetime]$d).To
 function Yuvarla($x, $b = 1) { if ($null -eq $x) { return $null } return [math]::Round([double]$x, $b) }
 function GB($bayt, $b = 1) { if ($null -eq $bayt) { return $null } return [math]::Round([double]$bayt / 1GB, $b) }
 function Ara($q) { 'https://www.google.com/search?q=' + [uri]::EscapeDataString($q) }
-function Olaylar($filtre) { @(Get-WinEvent -FilterHashtable $filtre -ErrorAction SilentlyContinue) }
+# Get-WinEvent, bilgisayarda kayıtlı olmayan bir olay kaynağı (ör. NVIDIA kartı olmayan bilgisayarda 'nvlddmkm')
+# sorulduğunda -ErrorAction'a rağmen "Parametre hatalı / The parameter is incorrect" ile durur; bunu yut.
+function Olaylar($filtre) {
+    try { @(Get-WinEvent -FilterHashtable $filtre -ErrorAction Stop) } catch { @() }
+}
 
+$script:DestekRepo = 'https://github.com/emiraneren/SistemCheckup'
 $WU_LINK = 'ms-settings:windowsupdate-optionalupdates'
 $INTEL_DSA = 'https://www.intel.com/content/www/us/en/support/detect.html'
 $INTEL_CHIPSET = 'https://www.intel.com/content/www/us/en/download/19347/chipset-inf-utility.html'
@@ -952,6 +964,11 @@ foreach ($t in @(Get-CimInstance Win32_PerfFormattedData_Counters_ThermalZoneInf
 if ($nvSmi) { $termal += [ordered]@{ ad = 'Ekran kartı'; sicaklik = $nvSmi.sicaklik } }
 foreach ($d in $diskListe) { if ($d.sicaklik) { $termal += [ordered]@{ ad = $d.ad; sicaklik = $d.sicaklik } } }
 
+if ($script:Atlananlar.Count) {
+    $liste = ($script:Atlananlar | ForEach-Object { "• $($_.adim): $($_.mesaj)" }) -join "`n"
+    Bulgu 'info' 'Sistem' "$($script:Atlananlar.Count) kontrol bu bilgisayarda yapılamadı" "Tarama tamamlandı, ancak şu kontroller atlandı:`n$liste`nBu genellikle bilgisayarınızla ilgili bir sorun değildir. Tekrar ederse GitHub sayfasından bildirebilirsiniz." "$($script:DestekRepo)/issues" 'Sorun bildir'
+}
+
 # İki ayrı puan: donanım arızası ile bakım işleri karıştırılmasın
 function PuanHesapla($tur, $kotu, $uyari) {
     $p = 100
@@ -1011,7 +1028,7 @@ $zaman = Get-Date
 $damga = $zaman.ToString('yyyy-MM-dd_HH-mm-ss')
 $raporYolu = Join-Path $raporDizin ("SistemCheckup_{0}.html" -f $damga)
 $veri = [ordered]@{
-    meta = [ordered]@{ tarih = $zaman.ToString('dd.MM.yyyy HH:mm'); yonetici = $Admin; sureSn = [int]($zaman - $Baslangic).TotalSeconds; testYapildi = $benchYuklu; surum = $UygulamaSurum; raporYolu = $raporYolu }
+    meta = [ordered]@{ tarih = $zaman.ToString('dd.MM.yyyy HH:mm'); yonetici = $Admin; sureSn = [int]($zaman - $Baslangic).TotalSeconds; testYapildi = $benchYuklu; surum = $UygulamaSurum; raporYolu = $raporYolu; atlanan = @($script:Atlananlar) }
     puan = $puan
     sistem = $sistem; pil = $pil; cpu = $cpuBilgi; gpu = @($gpuListe); ram = $ram; diskler = @($diskListe)
     olaylar = $olaylar; suruculer = $suruculer; cihazlar = $cihazlar; ag = $ag; termal = @($termal)

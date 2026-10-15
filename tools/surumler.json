@@ -1,5 +1,13 @@
 [
     {
+        "surum":  "1.3.1",
+        "tarih":  "2026-10-16",
+        "notlar":  [
+                       "Düzeltme: NVIDIA ekran kartı olmayan bilgisayarlarda tarama \"Parametre hatalı / The parameter is incorrect\" hatasıyla duruyordu",
+                       "Bir kontrol beklenmedik şekilde başarısız olursa artık tarama durmuyor; o kontrol atlanıp raporda belirtiliyor"
+                   ]
+    },
+    {
         "surum":  "1.3.0",
         "tarih":  "2026-10-16",
         "notlar":  [

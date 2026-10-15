@@ -1,13 +1,20 @@
 {
-    "surum":  "1.3.0",
-    "etiket":  "v1.3.0",
+    "surum":  "1.3.1",
+    "etiket":  "v1.3.1",
     "tarih":  "2026-10-16",
     "notlar":  [
-                   "Klasör sadeleştirildi: artık yalnızca SistemCheckup.exe (açmanız gereken), Kaldir.exe ve BENIOKU.txt görünüyor; güncelleyici app klasörüne taşındı",
-                   "Güncelleme sırasında neyin değiştiği kısaca gösteriliyor",
-                   "Yeni açıklayıcı README ve ekran görüntüleri"
+                   "Düzeltme: NVIDIA ekran kartı olmayan bilgisayarlarda tarama \"Parametre hatalı / The parameter is incorrect\" hatasıyla duruyordu",
+                   "Bir kontrol beklenmedik şekilde başarısız olursa artık tarama durmuyor; o kontrol atlanıp raporda belirtiliyor"
                ],
     "gecmis":  [
+                   {
+                       "surum":  "1.3.1",
+                       "tarih":  "2026-10-16",
+                       "notlar":  [
+                                      "Düzeltme: NVIDIA ekran kartı olmayan bilgisayarlarda tarama \"Parametre hatalı / The parameter is incorrect\" hatasıyla duruyordu",
+                                      "Bir kontrol beklenmedik şekilde başarısız olursa artık tarama durmuyor; o kontrol atlanıp raporda belirtiliyor"
+                                  ]
+                   },
                    {
                        "surum":  "1.3.0",
                        "tarih":  "2026-10-16",
@@ -76,14 +83,14 @@
                    }
                ],
     "paket":  {
-                  "ad":  "SistemCheckup-v1.3.0.zip",
-                  "sha256":  "1f923f31f0bcde14c544a808eeedd6e530e68bc4290f8536b0b68f41e4de9fd0",
-                  "boyut":  178166
+                  "ad":  "SistemCheckup-v1.3.1.zip",
+                  "sha256":  "4e7a09ea085b35729e4c010469a19f8eb6930d1491d21bccf939643b31e08ad0",
+                  "boyut":  178773
               },
     "dosyalar":  [
                      {
                          "hedef":  "app/Guncelleyici.exe",
-                         "sha256":  "ff7cb8ac35a8c88811fe6501b9074f0f50bd003618e902f6708017491844dc1d",
+                         "sha256":  "4d96d23dae101f07a8fe68e4887325d6822e071cd72f9993657bbc93cf638ff6",
                          "boyut":  54784
                      },
                      {
@@ -103,8 +110,8 @@
                      },
                      {
                          "hedef":  "app/SistemCheckup.ps1",
-                         "sha256":  "8f7a213936cfa315da0f615538fb79ec718e2850ba16370ec6084b75ea69320f",
-                         "boyut":  73702
+                         "sha256":  "d2971b46cad9712f62d76c80214f2ccebe41278adef65f20653af86812a55cba",
+                         "boyut":  74994
                      },
                      {
                          "hedef":  "BENIOKU.txt",
@@ -113,12 +120,12 @@
                      },
                      {
                          "hedef":  "Kaldir.exe",
-                         "sha256":  "2c51388bcd17b12e5fefd1d2fcf507e1fbd55e30632768a4f8a691b368872362",
+                         "sha256":  "c70ced71e035e7a8e9806d33b99023b9aad53767b985917006bb4985bbd0c335",
                          "boyut":  37888
                      },
                      {
                          "hedef":  "SistemCheckup.exe",
-                         "sha256":  "39a5835a25fb114a325e78e6e3f4925bdbfb3158b38f5013607f9e38d2e2d7b7",
+                         "sha256":  "9a38523c0ba4cba550b2437f55f3111b865f6c99610f42b45ca6af630f7e003f",
                          "boyut":  142848
                      }
                  ]
