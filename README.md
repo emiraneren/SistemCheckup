@@ -14,8 +14,11 @@ Windows için ücretsiz sistem sağlık kontrolü. Bilgisayarınızdaki parçala
 | **Bellek** | Modüller, hız, XMP/EXPO açık mı, çift kanal mı, bant genişliği testi |
 | **Pil (dizüstü)** | Kalan kapasite (yeniyken tuttuğuna göre), şarj döngüsü, priz/pil durumu |
 | **Kararlılık** | Son 30 günde mavi ekran, düzgün kapatılmadan kapanma, donanım hatası, disk hatası, ekran sürücüsü çökmesi |
-| **Sürücüler** | NVIDIA'nın sunucusundan en son sürüm karşılaştırması, Windows Update'te bekleyen sürücüler, sürücüsü eksik aygıtlar, eski sürücüler; her biri için indirme bağlantısı |
+| **Sürücüler** | NVIDIA'nın sunucusundan en son sürüm karşılaştırması, Windows Update'te bekleyen sürücüler, sürücüsü eksik aygıtlar, eski sürücüler; güncellemeler **büyük / küçük** diye ayrılır ve ne kazandıracağı yazılır |
+| **Bağlı cihazlar** | Monitör (model, boyut, çözünürlük, yenileme hızı; desteklediğinden düşük Hz'de çalışıyorsa uyarı), klavye, fare, oyun kumandası, ses cihazları, kamera, Bluetooth, yazıcı |
 | **Diğer** | BIOS yaşı, Windows güncellemeleri, Defender durumu, ağ bağlantı hızı |
+
+Uygulamada ayrıca **Ana sayfa** (puan ve hız geçmişi grafikleri, geçmiş taramalar), **Sistem bilgileri** (tüm donanım ve bağlı cihazlar), **Temizlik** (geçici dosyalar ve tarayıcı / uygulama önbellekleri) ve **Nasıl çalışıyor?** sekmeleri bulunur.
 
 Sonuçta iki ayrı puan verilir:
 - **Donanım sağlığı**: parçaların fiziksel durumu. Düşükse bir parça arızalanıyor olabilir.

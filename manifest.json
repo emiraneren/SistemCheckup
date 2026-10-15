@@ -1,12 +1,30 @@
 {
-    "surum":  "1.1.1",
-    "etiket":  "v1.1.1",
-    "tarih":  "2026-10-15",
+    "surum":  "1.2.0",
+    "etiket":  "v1.2.0",
+    "tarih":  "2026-10-16",
     "notlar":  [
-                   "\"Yeni sürüm hazır\" bandındaki düğme artık tam görünüyor",
-                   "Tarama iptal edildiğinde mesaj hata gibi kırmızı değil, normal gösteriliyor"
+                   "Yeni Ana sayfa: sağlık puanlarının, işlemci ve disk hızının zaman içindeki değişimi grafiklerle gösteriliyor; geçmiş taramaların raporları tek tıkla açılıyor",
+                   "Yeni Sistem bilgileri sekmesi: tüm donanım ayrıntıları ile bağlı monitör (model, boyut, Hz), klavye, fare, kumanda, ses cihazları, kamera ve Bluetooth cihazları",
+                   "Yeni Temizlik sekmesi: geçici dosyaları ve tarayıcı / uygulama önbelleklerini silerek yer açar; belgelere, şifrelere ve geçmişe dokunmaz",
+                   "Sürücü güncellemeleri artık \"büyük\" ve \"küçük\" diye ayrılıyor ve her birinin ne kazandıracağı yazıyor; küçük güncellemeler puanı düşürmüyor",
+                   "Monitör desteklediğinden düşük yenileme hızında çalışıyorsa uyarıyor ve nasıl düzeltileceğini anlatıyor",
+                   "Yeni \"Nasıl çalışıyor?\" sekmesi ve puan kartlarında açıklama balonları",
+                   "Pencere boyutu değişirken kartların kenarlarında iz kalması düzeltildi"
                ],
     "gecmis":  [
+                   {
+                       "surum":  "1.2.0",
+                       "tarih":  "2026-10-16",
+                       "notlar":  [
+                                      "Yeni Ana sayfa: sağlık puanlarının, işlemci ve disk hızının zaman içindeki değişimi grafiklerle gösteriliyor; geçmiş taramaların raporları tek tıkla açılıyor",
+                                      "Yeni Sistem bilgileri sekmesi: tüm donanım ayrıntıları ile bağlı monitör (model, boyut, Hz), klavye, fare, kumanda, ses cihazları, kamera ve Bluetooth cihazları",
+                                      "Yeni Temizlik sekmesi: geçici dosyaları ve tarayıcı / uygulama önbelleklerini silerek yer açar; belgelere, şifrelere ve geçmişe dokunmaz",
+                                      "Sürücü güncellemeleri artık \"büyük\" ve \"küçük\" diye ayrılıyor ve her birinin ne kazandıracağı yazıyor; küçük güncellemeler puanı düşürmüyor",
+                                      "Monitör desteklediğinden düşük yenileme hızında çalışıyorsa uyarıyor ve nasıl düzeltileceğini anlatıyor",
+                                      "Yeni \"Nasıl çalışıyor?\" sekmesi ve puan kartlarında açıklama balonları",
+                                      "Pencere boyutu değişirken kartların kenarlarında iz kalması düzeltildi"
+                                  ]
+                   },
                    {
                        "surum":  "1.1.1",
                        "tarih":  "2026-10-15",
@@ -53,15 +71,15 @@
                    }
                ],
     "paket":  {
-                  "ad":  "SistemCheckup-v1.1.1.zip",
-                  "sha256":  "580287ba838f6d5b61cda47baa87bf5af28678b9f1bbab6926debd285dc3971c",
-                  "boyut":  143259
+                  "ad":  "SistemCheckup-v1.2.0.zip",
+                  "sha256":  "ea033982411fb3b8990e38240259fe4d4714635eaa1c8ab43e823a464a1a65dc",
+                  "boyut":  177368
               },
     "dosyalar":  [
                      {
                          "hedef":  "app/rapor_sablon.html",
-                         "sha256":  "eaf26a854f460ffaf0b2043992a664301c1b02d5ed09e8422d26573eca3aba71",
-                         "boyut":  35794
+                         "sha256":  "0a5d65c56609f100358e20a6b9d2d6679fb4716d9258a376853752d680a50856",
+                         "boyut":  41917
                      },
                      {
                          "hedef":  "app/SCBench.cs",
@@ -69,9 +87,14 @@
                          "boyut":  9626
                      },
                      {
+                         "hedef":  "app/SCEkran.cs",
+                         "sha256":  "c2b66504b27984a625eaac3d4e05accf58b85b37200a5e0b54cdf9adef9b6a2b",
+                         "boyut":  3827
+                     },
+                     {
                          "hedef":  "app/SistemCheckup.ps1",
-                         "sha256":  "5399897aed41db7e807a4829afbb5c132b22eabdb6a1a628111ca08e023f9379",
-                         "boyut":  59057
+                         "sha256":  "8f7a213936cfa315da0f615538fb79ec718e2850ba16370ec6084b75ea69320f",
+                         "boyut":  73702
                      },
                      {
                          "hedef":  "BENIOKU.txt",
@@ -80,18 +103,18 @@
                      },
                      {
                          "hedef":  "Guncelleyici.exe",
-                         "sha256":  "5ff00a650006141d981ab0ea3a732e073bb9558f72aaac9af7241ff42955cab1",
+                         "sha256":  "f84c3bb21f90ffb1ff7dfd4b697afa0797f8725e1b194e1be649f6b205675b68",
                          "boyut":  54272
                      },
                      {
                          "hedef":  "Kaldir.exe",
-                         "sha256":  "c053a862ab6fb638ebfbb7bede93357fffe4590ead0e1e6cda9bd1bfd86de4b8",
+                         "sha256":  "cb78a78ea6aef8781b719554d75ae9b54ba852d2c25a8ff45c196c716f988391",
                          "boyut":  37376
                      },
                      {
                          "hedef":  "SistemCheckup.exe",
-                         "sha256":  "a78fe574032eef594c361feaedc6a44db5d0cdcaed3b3788291e241c3f0c5318",
-                         "boyut":  76800
+                         "sha256":  "627fac26f6c65179ccf7b0fbbc8a7c119e991b9757294995b22a6df30d0c808f",
+                         "boyut":  142336
                      }
                  ]
 }

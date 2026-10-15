@@ -1,5 +1,15 @@
 # Değişiklikler
 
+## 1.2.0 — 2026-10-16
+
+- Yeni Ana sayfa: sağlık puanlarının, işlemci ve disk hızının zaman içindeki değişimi grafiklerle gösteriliyor; geçmiş taramaların raporları tek tıkla açılıyor
+- Yeni Sistem bilgileri sekmesi: tüm donanım ayrıntıları ile bağlı monitör (model, boyut, Hz), klavye, fare, kumanda, ses cihazları, kamera ve Bluetooth cihazları
+- Yeni Temizlik sekmesi: geçici dosyaları ve tarayıcı / uygulama önbelleklerini silerek yer açar; belgelere, şifrelere ve geçmişe dokunmaz
+- Sürücü güncellemeleri artık "büyük" ve "küçük" diye ayrılıyor ve her birinin ne kazandıracağı yazıyor; küçük güncellemeler puanı düşürmüyor
+- Monitör desteklediğinden düşük yenileme hızında çalışıyorsa uyarıyor ve nasıl düzeltileceğini anlatıyor
+- Yeni "Nasıl çalışıyor?" sekmesi ve puan kartlarında açıklama balonları
+- Pencere boyutu değişirken kartların kenarlarında iz kalması düzeltildi
+
 ## 1.1.1 — 2026-10-15
 
 - "Yeni sürüm hazır" bandındaki düğme artık tam görünüyor

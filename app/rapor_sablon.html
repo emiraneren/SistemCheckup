@@ -69,7 +69,10 @@ h3 { font-size: 15px; margin: 0 0 10px; }
 .finding .ic { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; }
 .ic.bad { background: var(--bad-bg); color: var(--bad); } .ic.warn { background: var(--warn-bg); color: var(--warn); }
 .ic.info { background: var(--info-bg); color: var(--info); } .ic.ok { background: var(--ok-bg); color: var(--ok); }
-.finding .t { font-weight: 600; } .finding .d { color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+.finding .t { font-weight: 600; } .finding .d { color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; white-space: pre-line; }
+.finding .t .pill { margin-left: 8px; vertical-align: 1px; }
+.nasil h3 { margin: 18px 0 6px; } .nasil h3:first-child { margin-top: 0; } .nasil p, .nasil li { color: var(--muted); } .nasil ul { margin: 4px 0; padding-left: 20px; }
+.devlist { margin: 0; padding: 0; list-style: none; } .devlist li { padding: 3px 0; overflow-wrap: anywhere; }
 .finding .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .btn { display: inline-block; text-decoration: none; background: var(--accent); color: #fff; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 13px; white-space: nowrap; }
 :root[data-theme="dark"] .btn { color: #0f1115; }
@@ -120,7 +123,7 @@ code { background: var(--panel2); border: 1px solid var(--line); border-radius: 
 <body>
 <nav><div class="wrap">
   <a href="#ozet">Özet</a><a href="#donanim">Donanım</a><a href="#islemci">İşlemci</a><a href="#ekran">Ekran Kartı</a>
-  <a href="#bellek">Bellek</a><a href="#depolama">Depolama</a><a href="#suruculer">Sürücüler</a><a href="#kararlilik">Kararlılık</a><a href="#pil">Pil</a>
+  <a href="#bellek">Bellek</a><a href="#depolama">Depolama</a><a href="#suruculer">Sürücüler</a><a href="#cihazlar">Cihazlar</a><a href="#kararlilik">Kararlılık</a><a href="#pil">Pil</a><a href="#nasil">Nasıl çalışıyor?</a>
   <span class="sp"></span><button id="tema" type="button">Tema</button><button type="button" onclick="window.print()">Yazdır / PDF</button>
 </div></nav>
 <div class="wrap" id="app"></div>
@@ -196,7 +199,7 @@ function render() {
   // ---------- findings
   const act = B.filter(b => b.seviye !== 'ok');
   const fin = b => `<div class="card finding ${b.seviye}"><div class="ic ${b.seviye}">${ICON[b.seviye]}</div>
-      <div><div class="k">${esc(b.kategori)} · ${b.tur === 'bakim' ? 'Bakım' : 'Donanım'} · ${SEV[b.seviye]}</div><div class="t">${esc(b.baslik)}</div>${b.detay ? `<div class="d">${esc(b.detay)}</div>` : ''}</div>
+      <div><div class="k">${esc(b.kategori)} · ${b.tur === 'bakim' ? 'Bakım' : 'Donanım'} · ${SEV[b.seviye]}</div><div class="t">${esc(b.baslik)}${b.rozet ? `<span class="pill ${/Büyük/.test(b.rozet) ? 'warn' : 'info'}">${esc(b.rozet)}</span>` : ''}</div>${b.detay ? `<div class="d">${esc(b.detay)}</div>` : ''}</div>
       <div class="a">${link(b.link, b.linkMetin, b.seviye === 'ok' || b.seviye === 'info' ? 'btn ghost' : 'btn')}</div></div>`;
   h += `<section><h2>Yapılması gerekenler <small>${act.length ? 'önem sırasına göre · "Bilgi" olanlar sorun değildir' : 'her şey yolunda'}</small></h2><div class="stack">${act.map(fin).join('') || '<div class="note">Herhangi bir sorun veya uyarı bulunmadı.</div>'}</div>
     <details class="okfold"><summary>Sağlıklı bulunan ${n('ok')} kontrol</summary><div class="stack">${B.filter(b => b.seviye === 'ok').map(fin).join('')}</div></details></section>`;
@@ -359,7 +362,8 @@ function render() {
   const wu = arr(SR.windowsUpdate);
   h += `<div class="card" style="margin-bottom:12px"><div class="diskhead"><h3 style="margin:0">Windows Update'te bekleyen sürücüler</h3>${wu.length ? link('ms-settings:windowsupdate-optionalupdates', 'İsteğe bağlı güncellemeleri aç') : ''}</div>
     ${SR.wuHata ? `<div class="note">Windows Update sorgulanamadı: ${esc(SR.wuHata)}</div>` :
-      wu.length ? `<div class="tbl"><table><thead><tr><th>Aygıt</th><th>Sağlayıcı</th><th>Tür</th><th>Sürüm tarihi</th></tr></thead><tbody>${wu.map(u => `<tr><td>${esc(u.model)}<div class="muted" style="font-size:12px">${esc(u.baslik)}</div></td><td>${esc(u.saglayici)}</td><td>${esc(u.sinif)}</td><td class="num">${esc(u.tarih && u.tarih > '1990' ? u.tarih : '—')}</td></tr>`).join('')}</tbody></table></div>
+      wu.length ? `<div class="tbl"><table><thead><tr><th>Aygıt</th><th>Güncelleme</th><th>Ne kazandırır</th><th>Sürüm tarihi</th></tr></thead><tbody>${wu.map(u => `<tr><td>${esc(u.model)}<div class="muted" style="font-size:12px">${esc(u.saglayici)}${u.kuruluSurum ? ' · kurulu ' + esc(u.kuruluSurum) : ''}${u.yeniSurum ? ' → ' + esc(u.yeniSurum) : ''}</div></td>
+        <td>${u.boyut === 'buyuk' ? '<span class="pill warn">Büyük</span>' : '<span class="pill info">Küçük</span>'}</td><td>${esc(u.fayda || '')}${u.neden ? `<div class="muted" style="font-size:12px">${esc(u.neden)}</div>` : ''}</td><td class="num">${esc(u.tarih && u.tarih > '1990' ? u.tarih : '—')}</td></tr>`).join('')}</tbody></table></div>
       <p class="muted" style="font-size:12px;margin:8px 0 0">Ayarlar → Windows Update → Gelişmiş seçenekler → İsteğe bağlı güncelleştirmeler → Sürücü güncelleştirmeleri</p>`
       : '<div class="muted">Bekleyen sürücü güncellemesi yok.</div>'}</div>`;
 
@@ -385,6 +389,29 @@ function render() {
   }
   h += `<p class="muted" style="font-size:12px">NVIDIA sürücüsü doğrudan NVIDIA sunucusundan, diğerleri Windows Update kataloğundan kontrol edilir. Realtek ağ/ses gibi sürücülerin en doğru sürümü anakart üreticisinin destek sayfasındadır.</p></section>`;
 
+  // ---------- connected devices
+  const CH = D.cihazlar;
+  if (CH) {
+    const li = (xs, f) => arr(xs).length ? `<ul class="devlist">${arr(xs).map(x => `<li>${f(x)}</li>`).join('')}</ul>` : '<div class="muted">bulunamadı</div>';
+    const bag = x => x.baglanti ? ` <span class="muted">· ${esc(x.baglanti)}</span>` : '';
+    const box = (t, body) => `<div class="card"><div class="label" style="margin-bottom:6px">${esc(t)}</div>${body}</div>`;
+    h += `<section id="cihazlar"><h2>Bağlı cihazlar</h2>
+      ${arr(CH.monitorler).map(m => `<div class="card" style="margin-bottom:12px"><div class="diskhead"><div><div class="hw-title">${esc(m.ad)}${m.boyutInc ? ` · ${m.boyutInc}"` : ''}</div><div class="muted">${m.birincil ? 'Ana ekran · ' : ''}${esc(m.ekranKarti)}${m.uretimYili ? ' · üretim ' + m.uretimYili : ''}</div></div>
+        <span class="pill ${m.maksHz > m.hz + 5 ? 'warn' : 'ok'}">${m.hz} Hz${m.maksHz > m.hz + 5 ? ' · ' + m.maksHz + ' Hz destekliyor' : ''}</span></div>
+        ${kv([['Çözünürlük', esc(m.cozunurluk) + (m.enYuksekCozunurluk && m.enYuksekCozunurluk !== m.cozunurluk ? ` <span class="muted">(en yüksek ${esc(m.enYuksekCozunurluk)})</span>` : '')], ['Yenileme hızı', `${m.hz} Hz <span class="muted">(bu çözünürlükte en fazla ${m.maksHz} Hz)</span>`], ['Renk derinliği', m.renkBit + ' bit']])}</div>`).join('')}
+      <div class="grid g3">
+        ${box('Klavye', li(CH.klavyeler, x => esc(x.ad) + bag(x)))}
+        ${box('Fare', li(CH.fareler, x => esc(x.ad) + bag(x)))}
+        ${box('Oyun kumandası', li(CH.kumandalar, x => esc(x.ad) + bag(x)))}
+        ${box('Ses çıkışı (hoparlör / kulaklık)', li(CH.sesCikis, x => esc(x.ad)))}
+        ${box('Ses girişi (mikrofon)', li(CH.sesGiris, x => esc(x.ad)))}
+        ${box('Kamera', li(CH.kameralar, x => esc(x.ad) + (x.sanal ? ' <span class="muted">· yazılım kamerası</span>' : '')))}
+        ${box('Bluetooth (eşleştirilmiş)', li(CH.bluetooth, x => esc(x.ad)))}
+        ${box('Yazıcı', li(CH.yazicilar, x => esc(x.ad) + (x.varsayilan ? ' <span class="muted">· varsayılan</span>' : '')))}
+        ${arr(CH.digerGiris).length ? box('Diğer giriş cihazları', li(CH.digerGiris, x => esc(x.ad) + bag(x))) : ''}
+      </div></section>`;
+  }
+
   // ---------- stability
   const O = D.olaylar || {};
   const ev = (lbl, o, lvl, desc) => {
@@ -401,6 +428,28 @@ function render() {
     ${ev('Düzeltilmiş donanım uyarısı', O.duzeltilenDonanim, 'info', 'kayıt yok')}
     ${ev('Uygulama çökmesi', O.uygulamaCokmesi, 'info', 'kayıt yok')}
     <div class="card"><div class="label">En çok çöken uygulamalar</div>${arr(O.enCokCoken).map(a => `<div style="display:flex;justify-content:space-between;gap:8px"><span style="overflow-wrap:anywhere">${esc(a.uygulama)}</span><b>${a.adet}</b></div>`).join('') || '<div class="muted">yok</div>'}</div>
+  </div></section>`;
+
+  h += `<section id="nasil"><h2>Nasıl çalışıyor?</h2><div class="card nasil">
+    <h3>Bu bir check-up, stres testi değil</h3>
+    <p>Sistem Checkup, doktordaki genel kontrol gibi çalışır: parçaların ve Windows'un zaten tuttuğu kayıtları okur, yanında birkaç kısa ölçüm yapar. Üç kaynağa bakar:</p>
+    <ul>
+      <li><b>Parçaların kendi raporları:</b> SSD ve diskler kendi sağlık durumlarını sürekli ölçer (SMART): kalan ömür, sıcaklık, çalışma saati, hata sayısı. NVIDIA ekran kartı sıcaklığını, gücünü ve bağlantı hızını bildirir. Pil, yeniyken ve şimdi ne kadar enerji tuttuğunu bildirir.</li>
+      <li><b>Windows'un hata kayıtları (son 30 gün):</b> mavi ekranlar, düzgün kapatılmadan kapanmalar, işlemci / bellek / PCIe'nin kendi bildirdiği donanım hataları (WHEA), disk hataları ve ekran sürücüsü çökmeleri. Aygıt Yöneticisi'nde sürücüsü olmayan ya da hata veren aygıtlar.</li>
+      <li><b>Kısa ölçümler (yalnızca tam taramada):</b> diske 1 GB geçici dosya Windows önbelleği atlanarak yazılıp okunur. İşlemci önce tek çekirdekte 3 saniye, sonra tüm çekirdeklerde 10 saniye hesap yapar; bu sırada hızı (MHz) her saniye ölçülür, hız düşerse işlemci ısınıp kendini yavaşlatıyor demektir. Bellek hızı 256 MB veri kopyalanarak ölçülür.</li>
+    </ul>
+    <h3>Puanlar nasıl hesaplanıyor?</h3>
+    <p>İki puan da 100'den başlar. <b>Donanım sağlığı:</b> her sorun −20, her uyarı −7. <b>Bakım:</b> her sorun −15, her uyarı −6. "Bilgi" maddeleri ve küçük güncellemeler puanı düşürmez. 90 ve üstü çok iyi, 75 ve üstü iyi, 50 ve üstü dikkat, altı sorunlu. İşlemci ve disk puanları bu programa özeldir; kendi bilgisayarınızın zaman içindeki değişimini izlemek içindir.</p>
+    <h3>Sürücüler nasıl kontrol ediliyor?</h3>
+    <p>NVIDIA sürücüsü NVIDIA'nın sunucusundaki son sürümle karşılaştırılır. Diğer sürücüler için Microsoft'un Windows Update kataloğuna bakılır; AMD / Intel ekran kartı ve BIOS için sürücünün yaşına bakılıp üreticinin sayfasına yönlendirilir.</p>
+    <p><b>Küçük güncelleme:</b> aynı sürücü serisinin hata düzeltmeli sürümü; acil değildir. <b>Büyük güncelleme:</b> Windows'un genel sürücüsünden üreticinin kendi sürücüsüne geçiş, yeni bir ana sürüm ya da 2 yıldan eski bir sürücünün yenilenmesi; kurulması önerilir.</p>
+    <h3>Neleri ölçemez?</h3>
+    <ul>
+      <li>Belleği hata için test etmez (bunun için MemTest86 gerekir, saatler sürer).</li>
+      <li>Ekran kartını oyun yükü altında, işlemciyi uzun süre test etmez (FurMark, 3DMark, OCCT, Prime95).</li>
+      <li>İşlemci çekirdek sıcaklığı ve fan hızları Windows tarafından verilmez (HWiNFO ile görülebilir). Güç kaynağı hiç ölçülemez.</li>
+    </ul>
+    <p>Tarama tamamen bilgisayarınızda yapılır; raporlar hiçbir yere gönderilmez.</p>
   </div></section>`;
 
   h += `<footer>Sistem Checkup ${esc(D.meta.surum)} · Yeni tarama için <code>SistemCheckup.exe</code>'yi açın. Raporlar <code>Raporlar</code> klasörüne kaydedilir.

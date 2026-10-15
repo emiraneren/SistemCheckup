@@ -49,7 +49,7 @@ function Derle($cikti, $baslik, [string[]]$kaynaklar, [string[]]$referanslar) {
 }
 
 Write-Host "Sistem Checkup $Surum derleniyor..." -ForegroundColor Cyan
-Derle 'SistemCheckup.exe' 'Sistem Checkup' @('Arayuz.cs') @()
+Derle 'SistemCheckup.exe' 'Sistem Checkup' @('Arayuz.cs', 'Temizlik.cs') @()
 Derle 'Guncelleyici.exe' 'Sistem Checkup Güncelleyici' @('Guncelleyici.cs') @('System.IO.Compression.dll', 'System.IO.Compression.FileSystem.dll')
 Derle 'Kaldir.exe' 'Sistem Checkup Kaldırıcı' @('Kaldir.cs') @()
 

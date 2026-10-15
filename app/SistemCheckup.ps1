@@ -54,7 +54,7 @@ $Admin = Test-Yonetici
 
 # ------------------------------------------------------------------ yardımcılar
 $script:AdimNo = 0
-$ToplamAdim = 12
+$ToplamAdim = 13
 function Iptal {
     if ($IptalDosyasi -and (Test-Path $IptalDosyasi)) {
         Ilerleme 'IPTAL'
@@ -77,11 +77,11 @@ function Bilgi($metin) {
 $BakimKategorileri = 'Sürücüler', 'Windows', 'Güvenlik', 'Sistem', 'Ağ', 'Anakart'
 $Bulgular = New-Object System.Collections.ArrayList
 function Bulgu {
-    param($Seviye, $Kategori, $Baslik, $Detay, $Link = $null, $LinkMetin = $null, $Tur = $null)
+    param($Seviye, $Kategori, $Baslik, $Detay, $Link = $null, $LinkMetin = $null, $Tur = $null, $Rozet = $null)
     if (-not $Tur) { $Tur = if ($BakimKategorileri -contains $Kategori) { 'bakim' } else { 'donanim' } }
     # Karşılaştırma için sayılardan arındırılmış sabit anahtar
     $kod = "$Kategori|" + ($Baslik -replace '[\d\.,%]+', '#')
-    [void]$Bulgular.Add([ordered]@{ seviye = $Seviye; tur = $Tur; kategori = $Kategori; baslik = $Baslik; detay = $Detay; link = $Link; linkMetin = $LinkMetin; kod = $kod })
+    [void]$Bulgular.Add([ordered]@{ seviye = $Seviye; tur = $Tur; kategori = $Kategori; baslik = $Baslik; detay = $Detay; link = $Link; linkMetin = $LinkMetin; kod = $kod; rozet = $Rozet })
 }
 
 function Tarih($d) { if ($d) { try { return ([datetime]$d).ToString('yyyy-MM-dd') } catch {} } return $null }
@@ -668,7 +668,8 @@ try {
     $arayici = (New-Object -ComObject Microsoft.Update.Session).CreateUpdateSearcher()
     $sonuc = $arayici.Search("IsInstalled=0 and Type='Driver'")
     foreach ($u in $sonuc.Updates) {
-        $wuListe += [ordered]@{ baslik = "$($u.Title)"; model = "$($u.DriverModel)"; sinif = "$($u.DriverClass)"; saglayici = "$($u.DriverProvider)"; tarih = Tarih $u.DriverVerDate }
+        $wuListe += [ordered]@{ baslik = "$($u.Title)"; model = "$($u.DriverModel)"; sinif = "$($u.DriverClass)"; saglayici = "$($u.DriverProvider)"; tarih = Tarih $u.DriverVerDate
+            kuruluSurum = $null; yeniSurum = $null; boyut = $null; neden = $null; fayda = $null }
     }
 } catch { $wuHata = "$($_.Exception.Message)" }
 Bilgi "$($wuListe.Count) sürücü güncellemesi bulundu"
@@ -680,7 +681,7 @@ if ($nvGpu) {
     $kurulu = if ($nvSmi) { $nvSmi.surucu } else {
         $rakam = ($nvGpu.surucu -replace '\.', ''); if ($rakam.Length -ge 5) { $r = $rakam.Substring($rakam.Length - 5); "$($r.Substring(0,3)).$($r.Substring(3))" } else { $null }
     }
-    $nvidia = [ordered]@{ kurulu = $kurulu; enSon = $null; tarih = $null; detay = $NVIDIA_LINK; indir = $null; guncel = $null }
+    $nvidia = [ordered]@{ kurulu = $kurulu; enSon = $null; tarih = $null; detay = $NVIDIA_LINK; indir = $null; guncel = $null; boyut = $null }
     try {
         Bilgi 'NVIDIA sunucusundan en son sürücü sorgulanıyor...'
         # Masaüstü ve dizüstü GeForce sürücüleri aynı sürüm numarasıyla yayınlanır
@@ -701,13 +702,24 @@ if ($nvGpu) {
     if ($nvidia.guncel -eq $true) {
         Bulgu 'ok' 'Sürücüler' "NVIDIA sürücüsü güncel ($kurulu)" "En son Game Ready sürücüsü kurulu." $nvidia.detay 'Sürüm notları'
     } elseif ($nvidia.guncel -eq $false) {
-        Bulgu 'warn' 'Sürücüler' "NVIDIA sürücüsü güncellenebilir: $kurulu → $($nvidia.enSon)" "Yeni sürüm $($nvidia.tarih) tarihinde yayınlandı. Mevcut sürücünüz çalışıyor; yeni sürümler genelde yeni oyunlar için iyileştirmeler ve hata düzeltmeleri içerir. NVIDIA App üzerinden veya bağlantıdan güncelleyebilirsiniz." $nvidia.detay 'Sürücüyü indir'
+        # NVIDIA sürüm numarasının ilk kısmı sürücü serisidir (617.14 ve 617.42 aynı seri): aynı seri = küçük yama
+        $seriKurulu = "$kurulu".Split('.')[0]; $seriYeni = "$($nvidia.enSon)".Split('.')[0]
+        $eskiSurucu = $nvGpu.surucuYasGun -gt 180
+        $nvidia.boyut = if ($seriKurulu -eq $seriYeni -and -not $eskiSurucu) { 'kucuk' } else { 'buyuk' }
+        if ($nvidia.boyut -eq 'kucuk') {
+            Bulgu 'info' 'Sürücüler' "NVIDIA sürücüsü için küçük bir güncelleme var: $kurulu → $($nvidia.enSon)" "Aynı sürücü serisinin ($seriYeni) hata düzeltmeli yeni sürümü, $($nvidia.tarih) tarihinde yayınlandı.`nNe kazandırır: Son çıkan oyunlarda küçük iyileştirmeler ve hata düzeltmeleri. Şu an bir sorun yaşamıyorsanız acelesi yok." $nvidia.detay 'Sürücüyü indir' -Rozet 'Küçük güncelleme'
+        } else {
+            $neden = if ($eskiSurucu) { "Kurulu sürücünüz $([int]($nvGpu.surucuYasGun/30)) aylık." } else { "Yeni bir sürücü serisi ($seriYeni) çıktı." }
+            Bulgu 'warn' 'Sürücüler' "NVIDIA sürücüsü için büyük bir güncelleme var: $kurulu → $($nvidia.enSon)" "$neden Yeni sürüm $($nvidia.tarih) tarihinde yayınlandı.`nNe kazandırır: Yeni oyunlarda daha iyi performans, yeni özellikler, hata ve güvenlik düzeltmeleri. Güncellemeniz önerilir; NVIDIA App ile ya da bağlantıdan kurabilirsiniz." $nvidia.detay 'Sürücüyü indir' -Rozet 'Büyük güncelleme'
+        }
     }
 }
 foreach ($g in ($gpuListe | Where-Object { -not $_.sanal -and $_.uretici -in 'AMD', 'Intel' })) {
     $link = if ($g.uretici -eq 'AMD') { $AMD_LINK } else { $INTEL_DSA }
-    if ($g.surucuYasGun -gt 180) {
-        Bulgu 'warn' 'Sürücüler' "$($g.ad) sürücüsü $([int]($g.surucuYasGun/30)) aylık" "Kurulu sürüm $($g.surucu) ($($g.surucuTarih)). Ekran kartı sürücüleri sık güncellenir; büyük ihtimalle daha yeni bir sürüm vardır.$(if ($sistem.dizustu) { ' Dizüstü bilgisayarlarda önce üreticinin destek sayfasına bakmanız önerilir.' })" $link 'Sürücüyü indir'
+    if ($g.surucuYasGun -gt 365) {
+        Bulgu 'warn' 'Sürücüler' "$($g.ad) sürücüsü $([int]($g.surucuYasGun/30)) aylık" "Kurulu sürüm $($g.surucu) ($($g.surucuTarih)). Ekran kartı sürücüleri yılda birkaç kez büyük güncelleme alır; bu kadar eski bir sürücü için büyük ihtimalle önemli bir güncelleme vardır.`nNe kazandırır: Oyun performansı, yeni oyunlarla uyumluluk ve hata düzeltmeleri.$(if ($sistem.dizustu) { ' Dizüstü bilgisayarlarda önce üreticinin destek sayfasına bakmanız önerilir.' })" $link 'Sürücüyü indir' -Rozet 'Büyük güncelleme olabilir'
+    } elseif ($g.surucuYasGun -gt 180) {
+        Bulgu 'info' 'Sürücüler' "$($g.ad) sürücüsü $([int]($g.surucuYasGun/30)) aylık" "Kurulu sürüm $($g.surucu) ($($g.surucuTarih)). Bu üretici için otomatik sürüm karşılaştırması yapılamıyor; büyük ihtimalle küçük güncellemeler çıkmıştır.`nNe kazandırır: Genellikle hata düzeltmeleri ve yeni oyunlar için küçük iyileştirmeler. Acil değil." $link 'Üretici sayfası' -Rozet 'Küçük güncelleme olabilir'
     } else {
         Bulgu 'info' 'Sürücüler' "$($g.ad) sürücüsü $($g.surucuTarih) tarihli" "Kurulu sürüm $($g.surucu). Bu üretici için otomatik sürüm karşılaştırması yapılamıyor; en sonunu üreticinin sayfasından kontrol edebilirsiniz." $link 'Üretici sayfası'
     }
@@ -720,6 +732,43 @@ function WuEslesir($model, $aygit) {
     $a = "$aygit".ToLower()
     foreach ($k in $kelimeler) { if (-not $a.Contains($k)) { return $false } }
     return $true
+}
+
+# Güncellemenin kullanıcıya ne kazandıracağı (teknik olmayan dille)
+function Fayda($w) {
+    $m = "$($w.model) $($w.baslik)"
+    if ($m -match 'Bluetooth') { return 'Bluetooth cihazlarla (kulaklık, kumanda) daha az bağlantı kopması ve daha iyi uyumluluk' }
+    if ("$($w.sinif)" -match 'Network' -or $m -match 'Ethernet|Wi-?Fi|Wireless|WLAN|GbE|LAN') { return 'İnternet bağlantısında daha iyi hız ve kararlılık' }
+    if ($m -match 'MONITOR|DisplayPort|HDMI' -and "$($w.sinif)" -notmatch 'Display') { return 'Monitör özelliklerinin (yenileme hızı, HDR, renk) doğru tanınması' }
+    if ("$($w.sinif)" -match 'Display|Video') { return 'Oyun performansı ve görüntü hatalarının düzeltilmesi' }
+    if ($m -match 'Audio|Sound|Voice|Microphone|Speaker') { return 'Ses ve mikrofon özelliklerinin düzgün çalışması' }
+    if ($m -match 'Mouse|Keyboard|HID|Gamepad|Controller') { return 'Fare, klavye veya kumanda özelliklerinin düzgün çalışması' }
+    if ("$($w.sinif)" -match 'Extension') { return "Üreticinin ayar programının ($($w.saglayici)) aygıtla uyumu" }
+    if ($m -match 'INTEL|AMD|Chipset|PCI|SMBus|Serial IO|PEG') { return 'Yonga seti parçalarının doğru tanınması, güç yönetimi ve kararlılık' }
+    if ("$($w.sinif)" -match 'Printer|Imaging|Camera') { return 'Yazıcı veya kamera uyumluluğu' }
+    return 'Uyumluluk ve hata düzeltmeleri'
+}
+
+# Büyük güncelleme: Windows'un genel sürücüsünden üreticinin sürücüsüne geçiş, yeni bir ana sürüm
+# veya 2 yıldan eski bir sürücünün yenilenmesi. Geri kalanlar küçük yamadır.
+foreach ($w in $wuListe) {
+    $yeniSurum = ([regex]::Matches($w.baslik, '\d+(\.\d+){2,3}') | Select-Object -Last 1).Value
+    $es = $imzaliSuruculer | Where-Object { WuEslesir $w.model $_.DeviceName } | Select-Object -First 1
+    $boyut = 'kucuk'; $neden = $null
+    if ($es) {
+        $w.kuruluSurum = "$($es.DriverVersion)"
+        if ("$($es.DriverProviderName)" -match '^Microsoft' -and $w.saglayici -notmatch 'Microsoft') {
+            $boyut = 'buyuk'; $neden = "şu an Windows'un genel sürücüsü kullanılıyor, üreticinin kendi sürücüsü kurulacak"
+        } elseif ($yeniSurum -and $w.kuruluSurum -and $yeniSurum.Split('.')[0] -ne $w.kuruluSurum.Split('.')[0]) {
+            $boyut = 'buyuk'; $neden = 'yeni bir ana sürüm'
+        } elseif ($es.DriverDate -and $w.tarih -and ([datetime]$w.tarih - [datetime]$es.DriverDate).TotalDays -gt 730) {
+            $boyut = 'buyuk'; $neden = 'kurulu sürücü 2 yıldan daha eski'
+        }
+    }
+    $w.yeniSurum = $yeniSurum
+    $w.boyut = $boyut
+    $w.neden = $neden
+    $w.fayda = Fayda $w
 }
 
 $siniflar = @{ 'DISPLAY' = 'Ekran kartı'; 'NET' = 'Ağ'; 'MEDIA' = 'Ses'; 'SYSTEM' = 'Yonga seti'; 'HDC' = 'Depolama'; 'SCSIADAPTER' = 'Depolama'; 'BLUETOOTH' = 'Bluetooth'; 'USB' = 'USB' }
@@ -735,8 +784,8 @@ foreach ($d in $imzaliSuruculer) {
     $ms = ("$($d.DriverProviderName)" -match '^Microsoft')
     $wuEslesme = $wuListe | Where-Object { WuEslesir $_.model $d.DeviceName } | Select-Object -First 1
     $durum = 'ok'; $durumMetin = 'Güncel görünüyor'
-    if ($wuEslesme) { $durum = 'warn'; $durumMetin = "Windows Update'te yeni sürüm var" }
-    elseif ($sinif -eq 'DISPLAY' -and $nvidia -and $d.DeviceName -match 'NVIDIA') { if ($nvidia.guncel -eq $false) { $durum = 'warn'; $durumMetin = "Yeni sürüm: $($nvidia.enSon)" } elseif ($nvidia.guncel) { $durumMetin = 'En son sürüm' } }
+    if ($wuEslesme) { if ($wuEslesme.boyut -eq 'buyuk') { $durum = 'warn'; $durumMetin = 'Büyük güncelleme var' } else { $durum = 'info'; $durumMetin = 'Küçük güncelleme var' } }
+    elseif ($sinif -eq 'DISPLAY' -and $nvidia -and $d.DeviceName -match 'NVIDIA') { if ($nvidia.guncel -eq $false) { if ($nvidia.boyut -eq 'buyuk') { $durum = 'warn'; $durumMetin = "Büyük güncelleme: $($nvidia.enSon)" } else { $durum = 'info'; $durumMetin = "Küçük güncelleme: $($nvidia.enSon)" } } elseif ($nvidia.guncel) { $durumMetin = 'En son sürüm' } }
     elseif ($ms) { $durum = 'info'; $durumMetin = 'Windows genel sürücüsü' }
     elseif ($inf) { $durum = 'info'; $durumMetin = 'Yalnızca tanımlama (INF)' }
     elseif ($yas -gt 1095) { $durum = 'warn'; $durumMetin = "$([int]($yas/365)) yıllık, güncellemesi olabilir" }
@@ -762,8 +811,16 @@ foreach ($d in $imzaliSuruculer) {
 $eskiler = @($eskiler | Sort-Object yasGun -Descending | Group-Object ad | ForEach-Object { $_.Group[0] })
 
 if ($wuListe.Count) {
-    $ozet = ($wuListe | ForEach-Object { $_.model } | Select-Object -Unique) -join ', '
-    Bulgu 'warn' 'Sürücüler' "Windows Update'te $($wuListe.Count) sürücü güncellemesi bekliyor" "$ozet. Bunlar Microsoft'un onayladığı güncellemelerdir ve tek tıkla yüklenebilir: Ayarlar → Windows Update → Gelişmiş seçenekler → İsteğe bağlı güncelleştirmeler." $WU_LINK 'İsteğe bağlı güncellemeleri aç'
+    $nasil = "`nYüklemek için: Ayarlar → Windows Update → Gelişmiş seçenekler → İsteğe bağlı güncelleştirmeler."
+    $satir = { param($w) "• $($w.model): $($w.fayda)" + $(if ($w.neden) { " ($($w.neden))" } else { '' }) }
+    $buyukler = @($wuListe | Where-Object { $_.boyut -eq 'buyuk' })
+    $kucukler = @($wuListe | Where-Object { $_.boyut -ne 'buyuk' })
+    if ($buyukler.Count) {
+        Bulgu 'warn' 'Sürücüler' "Windows Update'te $($buyukler.Count) önemli sürücü güncellemesi var" ("Yüklemeniz önerilir. Ne kazandırır:`n" + (($buyukler | ForEach-Object { & $satir $_ }) -join "`n") + $nasil) $WU_LINK 'İsteğe bağlı güncellemeleri aç' -Rozet 'Büyük güncelleme'
+    }
+    if ($kucukler.Count) {
+        Bulgu 'info' 'Sürücüler' "Windows Update'te $($kucukler.Count) küçük sürücü güncellemesi var" ("Küçük iyileştirmelerdir, acil değildir. Ne kazandırır:`n" + (($kucukler | ForEach-Object { & $satir $_ }) -join "`n") + $nasil) $WU_LINK 'İsteğe bağlı güncellemeleri aç' -Rozet 'Küçük güncelleme'
+    }
 } elseif (-not $wuHata) {
     Bulgu 'ok' 'Sürücüler' "Windows Update'te bekleyen sürücü yok" 'Microsoft kataloğundaki tüm sürücüler güncel.'
 }
@@ -773,6 +830,112 @@ if ($eskiler.Count) {
 }
 
 $suruculer = [ordered]@{ windowsUpdate = $wuListe; wuHata = $wuHata; nvidia = $nvidia; onemli = $onemli; eski = $eskiler; sorunluAygitlar = $sorunlu; toplam = $imzaliSuruculer.Count }
+
+# ------------------------------------------------------------------ bağlı cihazlar
+Adim "Bağlı cihazlar (monitör, klavye, fare, ses)"
+function Ozellik($id, $anahtar) { try { (Get-PnpDeviceProperty -InstanceId $id -KeyName $anahtar -ErrorAction Stop).Data } catch { $null } }
+$VidUretici = @{ '1038' = 'SteelSeries'; '046D' = 'Logitech'; '045E' = 'Microsoft'; '0951' = 'HyperX'; '03F0' = 'HP'; '1532' = 'Razer'; '1B1C' = 'Corsair'
+    '3434' = 'Keychron'; '0B05' = 'ASUS'; '1E7D' = 'ROCCAT'; '2516' = 'Cooler Master'; '24AE' = 'Rapoo'; '413C' = 'Dell'; '17EF' = 'Lenovo'; '05AC' = 'Apple'
+    '054C' = 'Sony'; '057E' = 'Nintendo'; '28DE' = 'Valve'; '2DC8' = '8BitDo'; '1462' = 'MSI'; '1044' = 'Gigabyte'; '0D8C' = 'C-Media'; '3554' = 'Pulsar'; '361D' = 'Lamzu'; '373E' = 'Endgame Gear' }
+$PnpUretici = @{ GSM = 'LG'; SAM = 'Samsung'; SEC = 'Samsung'; DEL = 'Dell'; AUS = 'ASUS'; ACR = 'Acer'; AOC = 'AOC'; BNQ = 'BenQ'; MSI = 'MSI'; HWP = 'HP'; HPN = 'HP'
+    LEN = 'Lenovo'; PHL = 'Philips'; VSC = 'ViewSonic'; GBT = 'Gigabyte'; HKC = 'HKC'; XMI = 'Xiaomi'; SNY = 'Sony'; BOE = 'BOE'; AUO = 'AU Optronics'
+    LGD = 'LG Display'; SHP = 'Sharp'; CMN = 'Innolux'; IVO = 'InfoVision'; SDC = 'Samsung Display'; APP = 'Apple'; HSD = 'HannStar'; MZI = 'Monster' }
+$cihazlar = [ordered]@{ monitorler = @(); klavyeler = @(); fareler = @(); digerGiris = @(); kumandalar = @(); sesCikis = @(); sesGiris = @(); kameralar = @(); bluetooth = @(); yazicilar = @() }
+
+# Monitörler: model adı ve boyut EDID'den (WMI), çözünürlük ve yenileme hızı Windows ekran ayarlarından
+$wmiMon = @{}
+foreach ($m in @(Get-CimInstance -Namespace root\wmi WmiMonitorID)) {
+    $kod = ("$($m.InstanceName)" -split '\\')[1]
+    $wmiMon[$kod] = [ordered]@{ ad = (-join (@($m.UserFriendlyName) | Where-Object { $_ } | ForEach-Object { [char]$_ })).Trim(); uretici = (-join (@($m.ManufacturerName) | Where-Object { $_ } | ForEach-Object { [char]$_ })).Trim(); yil = [int]$m.YearOfManufacture; inc = $null }
+}
+foreach ($b in @(Get-CimInstance -Namespace root\wmi WmiMonitorBasicDisplayParams)) {
+    $kod = ("$($b.InstanceName)" -split '\\')[1]
+    if ($wmiMon.ContainsKey($kod) -and $b.MaxHorizontalImageSize -gt 0) { $wmiMon[$kod].inc = [math]::Round([math]::Sqrt([math]::Pow($b.MaxHorizontalImageSize, 2) + [math]::Pow($b.MaxVerticalImageSize, 2)) / 2.54, 0) }
+}
+$ekranlar = @()
+try { Add-Type -Path (Join-Path $KokDizin 'SCEkran.cs') -ErrorAction Stop; $ekranlar = @([SCEkran]::Listele()) } catch { Bilgi "Ekran bilgisi okunamadı: $($_.Exception.Message)" }
+foreach ($s in $ekranlar) {
+    $p = $s -split '\|'
+    $kod = ("$($p[3])" -split '\\')[1]
+    $w = if ($kod -and $wmiMon.ContainsKey($kod)) { $wmiMon[$kod] } else { $null }
+    $ad = if ($w -and $w.ad) { $w.ad } else { $p[2] }
+    $uretici = if ($w -and $PnpUretici.ContainsKey($w.uretici)) { $PnpUretici[$w.uretici] } elseif ($w) { $w.uretici } else { $null }
+    $tamAd = if ($uretici -and $ad -notmatch [regex]::Escape($uretici)) { "$uretici $ad" } else { $ad }
+    $hz = [int]$p[6]; $maksHz = [int]$p[9]
+    $cihazlar.monitorler += [ordered]@{ ad = $tamAd; boyutInc = $(if ($w) { $w.inc } else { $null }); uretimYili = $(if ($w -and $w.yil -gt 1990) { $w.yil } else { $null })
+        cozunurluk = "$($p[4]) x $($p[5])"; hz = $hz; maksHz = $maksHz; enYuksekCozunurluk = "$($p[10]) x $($p[11])"; renkBit = [int]$p[7]; birincil = ($p[8] -eq '1'); ekranKarti = $p[1] }
+    if ($maksHz -gt $hz + 5) {
+        Bulgu 'warn' 'Ekran' "$tamAd $hz Hz'de çalışıyor, $maksHz Hz destekliyor" "Bu bir arıza değil, bir ayardır: monitörünüz daha akıcı bir görüntü verebiliyor ama Windows düşük hızda kullanıyor.`nNe kazandırır: Oyunlarda ve fare hareketinde belirgin akıcılık.`nNasıl: Ayarlar → Sistem → Ekran → Gelişmiş ekran → Yenileme hızı → $maksHz Hz. Seçenek görünmüyorsa kablo sınırlıyor olabilir (DisplayPort veya HDMI 2.0 kablo kullanın)." 'ms-settings:display-advanced' 'Ekran ayarlarını aç' -Tur 'bakim' -Rozet 'Ayar'
+    } elseif ($hz -gt 0) {
+        Bulgu 'ok' 'Ekran' "$tamAd en yüksek yenileme hızında ($hz Hz)" "$($p[4]) x $($p[5]) çözünürlükte $hz Hz."
+    }
+}
+
+# Klavye ve fare: her fiziksel cihaz bir kez (bir klavye makro tuşları için 'fare' olarak da görünebilir)
+$fiziksel = [ordered]@{}
+foreach ($d in @(Get-PnpDevice -PresentOnly -Class Keyboard, Mouse | Where-Object { $_.Status -eq 'OK' })) {
+    $id = $d.InstanceId; $kok = $null; $ad = $null; $baglanti = $null; $vid = $null
+    for ($i = 0; $i -lt 6 -and $id; $i++) {
+        if ($id -match '^(ROOT|LGHUBDEVICE|SWD|HTREE)\\') { $kok = $null; break }   # sanal aygıt
+        if ($id -match '^USB\\VID_([0-9A-F]{4})&PID_[0-9A-F]{4}') {
+            $vid = $matches[1]; $br = Ozellik $id 'DEVPKEY_Device_BusReportedDeviceDesc'
+            if ($br) { $ad = "$br".Trim() }
+            if ($id -notmatch '&MI_') { $kok = $id; $baglanti = 'USB'; break }      # bileşik cihazın kendisi
+        }
+        if ($id -match '^(BTHLE|BTHENUM)\\DEV_|^BTHENUM\\.*_DEV_') { $kok = $id; $baglanti = 'Bluetooth'; $ad = (Get-PnpDevice -InstanceId $id).FriendlyName; break }
+        if ($id -match '^BTHLEDEVICE\\.*VID&02([0-9A-F]{4})') { $vid = $matches[1] }
+        if ($id -match '^ACPI\\') { $kok = "dahili-$($d.Class)"; $baglanti = 'Dahili'; $ad = if ($d.Class -eq 'Keyboard') { 'Dahili klavye' } else { 'Dahili dokunmatik yüzey' }; break }
+        $id = Ozellik $id 'DEVPKEY_Device_Parent'
+    }
+    if (-not $kok) { continue }
+    if (-not $fiziksel.Contains($kok)) { $fiziksel[$kok] = [ordered]@{ ad = $ad; vid = $vid; baglanti = $baglanti; siniflar = @() } }
+    if ($ad -and -not $fiziksel[$kok].ad) { $fiziksel[$kok].ad = $ad }
+    $fiziksel[$kok].siniflar += "$($d.Class)"
+}
+$klavyeAdi = 'Keyboard|Klavye|Apex|Alloy|BlackWidow|Huntsman|Keychron|Vulcan|Ornata|Cynosa|Strafe|\bK\d{2,3}\b|TKL'
+$fareAdi = 'Mouse|Fare|DeathAdder|Viper|Basilisk|Rival|Aerox|Prime|Pulsefire|Model [ODI]\b|MX Master|MX Anywhere|Superlight|Dokunmatik|Touchpad|\bG\d{3}\b|G Pro'
+foreach ($f in $fiziksel.Values) {
+    $uretici = if ($f.vid -and $VidUretici.ContainsKey($f.vid)) { $VidUretici[$f.vid] } else { $null }
+    $ad = if ($f.ad) { $f.ad } else { 'Bilinmeyen cihaz' }
+    if ($uretici -and $ad -notmatch [regex]::Escape($uretici)) { $ad = "$uretici $ad" }
+    $kayit = [ordered]@{ ad = $ad; baglanti = $f.baglanti }
+    $k = $f.siniflar -contains 'Keyboard'; $m = $f.siniflar -contains 'Mouse'
+    if ($ad -match $klavyeAdi) { $cihazlar.klavyeler += $kayit }
+    elseif ($ad -match $fareAdi) { $cihazlar.fareler += $kayit }
+    elseif ($k -and -not $m) { $cihazlar.klavyeler += $kayit }
+    elseif ($m -and -not $k) { $cihazlar.fareler += $kayit }
+    else { $cihazlar.digerGiris += $kayit }
+}
+
+# Bluetooth cihazları ve oyun kumandaları
+foreach ($b in @(Get-PnpDevice -PresentOnly -Class Bluetooth | Where-Object { $_.Status -eq 'OK' -and $_.InstanceId -match '^(BTHENUM|BTHLE)\\DEV_' })) {
+    if ($b.FriendlyName) { $cihazlar.bluetooth += [ordered]@{ ad = "$($b.FriendlyName)" } }
+}
+$kumandaAdi = 'Controller|Gamepad|Kumanda|DualSense|DualShock|Joy-Con|XINPUT'
+$kumandaAdlari = @{}
+foreach ($c in @(Get-PnpDevice -PresentOnly | Where-Object { $_.Status -eq 'OK' -and ($_.Class -in 'XboxComposite', 'XnaComposite' -or ($_.Class -eq 'HIDClass' -and $_.FriendlyName -match $kumandaAdi)) })) {
+    $ad = "$($c.FriendlyName)"; $id = $c.InstanceId; $bag = 'USB'
+    for ($i = 0; $i -lt 5 -and $id; $i++) {
+        if ($id -match '^(BTHLE|BTHENUM)\\DEV_') { $ad = (Get-PnpDevice -InstanceId $id).FriendlyName; $bag = 'Bluetooth'; break }
+        if ($id -match '^USB\\VID_[0-9A-F]{4}&PID_[0-9A-F]{4}\\' -and $id -notmatch '&MI_') { $br = Ozellik $id 'DEVPKEY_Device_BusReportedDeviceDesc'; if ($br) { $ad = "$br" }; break }
+        $id = Ozellik $id 'DEVPKEY_Device_Parent'
+    }
+    if (-not $kumandaAdlari.ContainsKey($ad)) { $kumandaAdlari[$ad] = $true; $cihazlar.kumandalar += [ordered]@{ ad = $ad; baglanti = $bag } }
+}
+foreach ($b in $cihazlar.bluetooth) { if ($b.ad -match $kumandaAdi -and -not $kumandaAdlari.ContainsKey($b.ad)) { $kumandaAdlari[$b.ad] = $true; $cihazlar.kumandalar += [ordered]@{ ad = $b.ad; baglanti = 'Bluetooth' } } }
+
+# Ses, kamera, yazıcı
+foreach ($a in @(Get-PnpDevice -PresentOnly -Class AudioEndpoint | Where-Object { $_.Status -eq 'OK' } | Sort-Object FriendlyName)) {
+    $kayit = [ordered]@{ ad = "$($a.FriendlyName)" }
+    if ($a.InstanceId -match '\{0\.0\.1\.') { $cihazlar.sesGiris += $kayit } else { $cihazlar.sesCikis += $kayit }
+}
+foreach ($k in @(Get-PnpDevice -PresentOnly -Class Camera, Image | Where-Object { $_.Status -eq 'OK' })) {
+    $cihazlar.kameralar += [ordered]@{ ad = "$($k.FriendlyName)"; sanal = ($k.InstanceId -match '^(ROOT|SWD)\\') }
+}
+foreach ($y in @(Get-CimInstance Win32_Printer | Where-Object { $_.Name -notmatch 'PDF|XPS|OneNote|Fax|Send To|Microsoft Print' })) {
+    $cihazlar.yazicilar += [ordered]@{ ad = "$($y.Name)"; varsayilan = [bool]$y.Default }
+}
+Bilgi ("{0} monitör, {1} klavye, {2} fare, {3} ses cihazı" -f $cihazlar.monitorler.Count, $cihazlar.klavyeler.Count, $cihazlar.fareler.Count, ($cihazlar.sesCikis.Count + $cihazlar.sesGiris.Count))
 
 # ------------------------------------------------------------------ rapor
 Adim "Sonuçlar hazırlanıyor"
@@ -851,7 +1014,7 @@ $veri = [ordered]@{
     meta = [ordered]@{ tarih = $zaman.ToString('dd.MM.yyyy HH:mm'); yonetici = $Admin; sureSn = [int]($zaman - $Baslangic).TotalSeconds; testYapildi = $benchYuklu; surum = $UygulamaSurum; raporYolu = $raporYolu }
     puan = $puan
     sistem = $sistem; pil = $pil; cpu = $cpuBilgi; gpu = @($gpuListe); ram = $ram; diskler = @($diskListe)
-    olaylar = $olaylar; suruculer = $suruculer; ag = $ag; termal = @($termal)
+    olaylar = $olaylar; suruculer = $suruculer; cihazlar = $cihazlar; ag = $ag; termal = @($termal)
     karsilastirma = $karsilastirma
     bulgular = @($Bulgular | Sort-Object { $sira[$_.seviye] })
 }
