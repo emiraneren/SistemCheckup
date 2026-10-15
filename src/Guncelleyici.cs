@@ -147,6 +147,9 @@ namespace SistemCheckup
             btnDenetle.Enabled = !m;
             btnBaslat.Enabled = !m && File.Exists(Ortak.BaslaticiYolu);
             btnGuncelle.Enabled = !m && degisen.Count > 0;
+            // Düz (flat) butonlar devre dışıyken renk değiştirmediği için elle soluklaştır
+            btnGuncelle.BackColor = btnGuncelle.Enabled ? Vurgu : Color.FromArgb(178, 189, 232);
+            btnGuncelle.FlatAppearance.BorderColor = btnGuncelle.BackColor;
             UseWaitCursor = m;
         }
 
@@ -292,6 +295,7 @@ namespace SistemCheckup
                 SurumuKaydet();
                 bar.Value = 100;
                 degisen = new List<DosyaBilgi>();
+                txtNotlar.Text = txtNotlar.Text.Replace("İndirilecek dosyalar:", "Güncellenen dosyalar:");
                 KuruluGoster();
                 Durum("Güncelleme tamamlandı ✓  Sürüm " + m.surum + (kendisi ? " (güncelleyici de yenilendi)" : ""), Yesil);
             }
