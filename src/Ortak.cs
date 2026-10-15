@@ -87,13 +87,31 @@ namespace SistemCheckup
             return req;
         }
 
-        public static Manifest UzakManifest(int zamanAsimiMs)
+        static string Oku(string url, int zamanAsimiMs)
         {
-            using (WebResponse resp = Istek(ManifestUrl, zamanAsimiMs).GetResponse())
+            HttpWebRequest req = Istek(url, zamanAsimiMs);
+            if (url.StartsWith("https://api.github.com")) req.Accept = "application/vnd.github+json";
+            using (WebResponse resp = req.GetResponse())
             using (StreamReader sr = new StreamReader(resp.GetResponseStream(), Encoding.UTF8))
             {
-                return Coz(sr.ReadToEnd());
+                return sr.ReadToEnd();
             }
+        }
+
+        // Önce GitHub API'sinden son sürümün etiketini alır (anında güncellenir);
+        // API sınırına takılırsa releases/latest yönlendirmesine düşer (birkaç dakika gecikebilir).
+        public static Manifest UzakManifest(int zamanAsimiMs)
+        {
+            try
+            {
+                Dictionary<string, object> rel = new JavaScriptSerializer().Deserialize<Dictionary<string, object>>(
+                    Oku("https://api.github.com/repos/" + Repo + "/releases/latest", zamanAsimiMs));
+                object etiket;
+                if (rel.TryGetValue("tag_name", out etiket) && etiket != null)
+                    return Coz(Oku(RepoUrl + "/releases/download/" + Uri.EscapeDataString(etiket.ToString()) + "/manifest.json", zamanAsimiMs));
+            }
+            catch (WebException) { }
+            return Coz(Oku(ManifestUrl, zamanAsimiMs));
         }
 
         // ilerleme: indirilen bayt sayısı
