@@ -1,32 +1,43 @@
 # Sistem Checkup
 
-Windows için ücretsiz sistem sağlık kontrolü. Bilgisayarınızdaki parçaların sağlıklı çalışıp çalışmadığını kontrol eder, teknik detayları ve hız testlerini gösterir, sürücülerin güncel olup olmadığına bakar ve güncel olmayanlar için indirme bağlantısı verir. Sonuçlar tarayıcıda açılan bir HTML raporda gösterilir.
+Windows için ücretsiz sistem sağlık kontrolü. Bilgisayarınızdaki parçaların sağlıklı çalışıp çalışmadığını kontrol eder, teknik detayları ve hız testlerini gösterir, sürücülerin güncel olup olmadığına bakar ve güncel olmayanlar için indirme bağlantısı verir.
+
+**[⬇ Son sürümü indir](../../releases/latest)**: sayfadaki `SistemCheckup-vX.Y.Z.zip` dosyası.
 
 ## Neler kontrol ediliyor?
 
 | Alan | Kontroller |
 |---|---|
-| **Disk / SSD** | Sağlık durumu, ömür kullanımı (aşınma), sıcaklık, çalışma saati, doluluk, sıralı ve 4K okuma/yazma hız testi (önbelleksiz) |
-| **İşlemci** | Tek / çok çekirdek puanı, yük altında efektif frekans, 10 saniyelik tam yükte ısıl kısıtlama (throttling) testi |
+| **Disk / SSD** | Sağlık durumu, kalan ömür, sıcaklık, çalışma saati, doluluk, sıralı ve 4K okuma/yazma hız testi (önbelleksiz) |
+| **İşlemci** | Tek / çok çekirdek puanı, yük altında hız, 10 saniyelik tam yükte ısınma (throttling) testi |
 | **Ekran kartı** | Sıcaklık, kullanım, güç, VRAM, PCIe bağlantı hızı (NVIDIA kartlarda canlı veri) |
 | **Bellek** | Modüller, hız, XMP/EXPO açık mı, çift kanal mı, bant genişliği testi |
-| **Kararlılık** | Son 30 günde mavi ekran, beklenmeyen kapanma, WHEA donanım hatası, disk hatası, ekran sürücüsü çökmesi |
-| **Sürücüler** | NVIDIA'nın sunucusundan en son sürüm karşılaştırması, Windows Update'te bekleyen sürücüler, sürücüsü eksik aygıtlar, eski sürücüler — her biri için indirme bağlantısı |
+| **Pil (dizüstü)** | Kalan kapasite (yeniyken tuttuğuna göre), şarj döngüsü, priz/pil durumu |
+| **Kararlılık** | Son 30 günde mavi ekran, düzgün kapatılmadan kapanma, donanım hatası, disk hatası, ekran sürücüsü çökmesi |
+| **Sürücüler** | NVIDIA'nın sunucusundan en son sürüm karşılaştırması, Windows Update'te bekleyen sürücüler, sürücüsü eksik aygıtlar, eski sürücüler; her biri için indirme bağlantısı |
 | **Diğer** | BIOS yaşı, Windows güncellemeleri, Defender durumu, ağ bağlantı hızı |
+
+Sonuçta iki ayrı puan verilir:
+- **Donanım sağlığı**: parçaların fiziksel durumu. Düşükse bir parça arızalanıyor olabilir.
+- **Bakım ve güncellemeler**: sürücüler, güncellemeler, disk alanı ve ayarlar. Düşük olması donanımın bozuk olduğu anlamına gelmez.
+
+Her tarama saklanır; bir sonraki taramada puanların, hız ölçümlerinin, SSD ömrünün ve pil kapasitesinin nasıl değiştiği, hangi sorunların çözüldüğü gösterilir.
 
 ## Kurulum
 
 1. [Releases](../../releases/latest) sayfasından `SistemCheckup-vX.Y.Z.zip` dosyasını indirin.
-2. Bir klasöre çıkarın (ör. `Belgeler\SistemCheckup`).
-3. `SistemCheckup.exe` dosyasını çalıştırın. Yönetici izni verirseniz SSD ömrü ve sıcaklık bilgileri de raporlanır.
+2. Zip'e sağ tıklayıp **Tümünü ayıkla** deyin.
+3. Çıkan klasördeki `SistemCheckup.exe`'yi açın. İlk açılışta masaüstü ve Başlat menüsü kısayolu isteyip istemediğiniz sorulur.
 
 > **"Windows bilgisayarınızı korudu" uyarısı:** Exe dijital olarak imzalı olmadığı için Windows SmartScreen ilk açılışta uyarı gösterebilir. **Ek bilgi → Yine de çalıştır** ile açabilirsiniz. Kaynak kodun tamamı bu depodadır.
 
 ## Güncelleme
 
-`Guncelleyici.exe` dosyasını açın. Son sürümü GitHub'dan denetler, **yalnızca değişen dosyaları** indirir, SHA256 ile doğrular ve yerine koyar. `SistemCheckup.exe` de her açılışta yeni sürüm olup olmadığını sorar.
+Yeni sürüm çıktığında pencerenin üstünde bir bant belirir; **Şimdi güncelle**'ye basmanız yeterli. Güncelleyici zip paketini indirir, paketin ve içindeki her dosyanın SHA256 değerini doğrular ve **yalnızca değişen dosyaları** yerine koyar. Kurulu sürümden bu yana çıkan tüm sürümlerin notlarını gösterir. Eksik ya da bozulmuş dosyaları da onarır.
 
-Güncelleyici eksik veya bozulmuş dosyaları da onarır.
+## Kaldırma
+
+Klasördeki `Kaldir.exe`'yi açın (ya da programın altındaki **Kaldır** bağlantısı). Program dosyaları, raporlar, ayarlar ve kısayollar silinir. Klasöre sizin koyduğunuz başka dosyalara dokunulmaz.
 
 ## Gereksinimler
 
@@ -41,23 +52,26 @@ Tarama tamamen bilgisayarınızda yapılır. Raporlar yalnızca `Raporlar` klas�
 ## Geliştirici notları
 
 ```
-app/            Tarama betiği, test modülü ve rapor şablonu (yamalanan dosyalar)
-src/            Başlatıcı (SistemCheckup.exe) ve güncelleyici (Guncelleyici.exe) kaynak kodu
-assets/         Simge
-build.ps1       Exe'leri derler, dist\ klasörünü hazırlar
-yayinla.ps1     Yeni sürüm yayınlar (derle + commit + tag + GitHub Release)
-proje.json      GitHub depo adı
+app/             Tarama motoru (PowerShell), hız testi modülü ve HTML rapor şablonu
+src/Arayuz.cs    SistemCheckup.exe: pencereli ana uygulama
+src/Guncelleyici.cs  Guncelleyici.exe
+src/Kaldir.cs    Kaldir.exe
+src/Ortak.cs     Ortak kod (manifest, indirme, kısayollar, ayarlar)
+build.ps1        Exe'leri derler, dist\SistemCheckup\ klasörünü hazırlar
+yayinla.ps1      Yeni sürüm yayınlar
+manifest.json    Son sürümün dosya listesi ve SHA256 değerleri (yayinla.ps1 üretir)
+surumler.json    Sürüm notları geçmişi (yayinla.ps1 günceller)
 ```
 
 Yeni bir yama yayınlamak için (GitHub CLI `gh` ile giriş yapılmış olmalı):
 
 ```powershell
-.\yayinla.ps1 -Surum 1.0.1 -Notlar "Yapılan değişikliklerin açıklaması"
+.\yayinla.ps1 -Surum 1.1.1 -Notlar "Birinci değişiklik", "İkinci değişiklik"
 ```
 
-Betik exe'leri derler, her dosyanın SHA256 değeriyle `manifest.json` üretir, commit + tag atar ve dosyaları GitHub Release'e yükler. Güncelleyici `releases/latest/download/manifest.json` adresini okuyup değişen dosyaları indirir.
+Notları kullanıcının anlayacağı dilde, madde madde yazın; güncelleyicide aynen görünür. Betik exe'leri derler, zip paketini ve `manifest.json`'u üretir, commit + tag atar ve GitHub Release'e yalnızca zip ile `BENIOKU.txt`'yi yükler. Güncelleyici son sürümün etiketini GitHub API'sinden alır, `manifest.json`'u o etiketten okur ve zip'ten değişen dosyaları çıkarır.
 
-Göndermeden yalnızca derlemek için: `.\yayinla.ps1 -Surum 1.0.1 -Taslak`
+Göndermeden yalnızca derlemek için `-Taslak` ekleyin.
 
 ## Lisans
 

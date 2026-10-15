@@ -3,14 +3,17 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-// Guncelleyici.exe: GitHub'daki son sürümü denetler, yalnızca değişen dosyaları indirir,
-// SHA256 ile doğrular ve yerine koyar. Kendi exe'sini de güncelleyebilir.
+// Guncelleyici.exe: GitHub'daki son sürümü denetler. Release'teki zip paketini indirir, paketin ve içinden
+// alınan her dosyanın SHA256 değerini doğrular ve yalnızca değişen dosyaları yerine koyar.
+// Kendi exe'sini de güncelleyebilir (çalışan exe yeniden adlandırılıp yenisi konur).
 namespace SistemCheckup
 {
     static class GuncelleyiciProgram
@@ -46,6 +49,7 @@ namespace SistemCheckup
         static readonly Color Vurgu = Color.FromArgb(58, 91, 217);
         static readonly Color Yesil = Color.FromArgb(31, 138, 76);
         static readonly Color Kirmizi = Color.FromArgb(198, 47, 47);
+        static readonly CultureInfo Tr = new CultureInfo("tr-TR");
 
         public GuncelleyiciForm(bool otomatik)
         {
@@ -54,8 +58,8 @@ namespace SistemCheckup
             Font = new Font("Segoe UI", 9.75f);
             AutoScaleMode = AutoScaleMode.Dpi;
             AutoScaleDimensions = new SizeF(96f, 96f);
-            ClientSize = new Size(540, 430);
-            MinimumSize = new Size(480, 380);
+            ClientSize = new Size(560, 470);
+            MinimumSize = new Size(480, 400);
             StartPosition = FormStartPosition.CenterScreen;
             BackColor = Color.White;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
@@ -68,10 +72,7 @@ namespace SistemCheckup
             t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             t.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            for (int i = 0; i < 4; i++) t.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             lblKurulu.AutoSize = true; lblKurulu.Margin = new Padding(0, 0, 0, 4);
             lblSon.AutoSize = true; lblSon.Margin = new Padding(0, 0, 0, 10);
@@ -85,13 +86,13 @@ namespace SistemCheckup
 
             FlowLayoutPanel butonlar = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.RightToLeft, Margin = new Padding(0) };
             Butonla(btnGuncelle, "Güncelle", true);
-            Butonla(btnBaslat, "Sistem Checkup'ı başlat", false);
+            Butonla(btnBaslat, "Sistem Checkup'ı aç", false);
             Butonla(btnDenetle, "Yeniden denetle", false);
             butonlar.Controls.Add(btnGuncelle);
             butonlar.Controls.Add(btnBaslat);
             butonlar.Controls.Add(btnDenetle);
 
-            lnkRepo.Text = "GitHub sayfası";
+            lnkRepo.Text = "Tüm sürümler (GitHub)";
             lnkRepo.AutoSize = true;
             lnkRepo.Margin = new Padding(0, 8, 0, 0);
             lnkRepo.LinkClicked += (s, e) => Ortak.Ac(Ortak.RepoUrl + "/releases", null);
@@ -129,10 +130,16 @@ namespace SistemCheckup
             b.Cursor = Cursors.Hand;
         }
 
+        static string GuzelTarih(string t)
+        {
+            DateTime d;
+            return DateTime.TryParseExact(t ?? "", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out d) ? d.ToString("d MMMM yyyy", Tr) : (t ?? "");
+        }
+
         void KuruluGoster()
         {
             Manifest m = Ortak.YerelManifest();
-            lblKurulu.Text = "Kurulu sürüm: " + (m != null ? m.surum + (string.IsNullOrEmpty(m.tarih) ? "" : "  (" + m.tarih + ")") : "kurulu değil");
+            lblKurulu.Text = "Kurulu sürüm: " + (m != null ? m.surum + (string.IsNullOrEmpty(m.tarih) ? "" : "  (" + GuzelTarih(m.tarih) + ")") : "bilinmiyor");
         }
 
         void Durum(string metin, Color renk)
@@ -145,12 +152,34 @@ namespace SistemCheckup
         {
             mesgul = m;
             btnDenetle.Enabled = !m;
-            btnBaslat.Enabled = !m && File.Exists(Ortak.BaslaticiYolu);
+            btnBaslat.Enabled = !m && File.Exists(Ortak.AnaUygulamaYolu);
             btnGuncelle.Enabled = !m && degisen.Count > 0;
-            // Düz (flat) butonlar devre dışıyken renk değiştirmediği için elle soluklaştır
             btnGuncelle.BackColor = btnGuncelle.Enabled ? Vurgu : Color.FromArgb(178, 189, 232);
             btnGuncelle.FlatAppearance.BorderColor = btnGuncelle.BackColor;
             UseWaitCursor = m;
+        }
+
+        // Kurulu sürümden sonraki tüm sürümlerin notlarını, en yeniden eskiye anlaşılır şekilde listeler.
+        string NotMetni(Manifest m, string yerel)
+        {
+            List<SurumNotu> gecmis = m.gecmis ?? new List<SurumNotu>();
+            if (gecmis.Count == 0) gecmis.Add(new SurumNotu { surum = m.surum, tarih = m.tarih, notlar = m.notlar });
+            List<SurumNotu> yeniler = gecmis.Where(g => Ortak.YeniMi(g.surum, yerel)).ToList();
+            bool guncel = yeniler.Count == 0;
+            if (guncel) yeniler = gecmis.Take(1).ToList();
+
+            StringBuilder sb = new StringBuilder();
+            if (!guncel && yeniler.Count > 1) sb.AppendLine("Kurulu sürümünüzden bu yana " + yeniler.Count + " güncelleme yayınlandı. Neler değişti:\r\n");
+            else if (!guncel) sb.AppendLine("Bu güncellemede neler değişti:\r\n");
+            else sb.AppendLine("Son sürümdeki değişiklikler:\r\n");
+            foreach (SurumNotu g in yeniler.Take(10))
+            {
+                sb.AppendLine("Sürüm " + g.surum + "  ·  " + GuzelTarih(g.tarih));
+                foreach (string n in g.notlar ?? new List<string>()) sb.AppendLine("   • " + n);
+                sb.AppendLine();
+            }
+            if (yeniler.Count > 10) sb.AppendLine("... ve " + (yeniler.Count - 10) + " eski sürüm daha.");
+            return sb.ToString();
         }
 
         async Task Denetle()
@@ -180,20 +209,14 @@ namespace SistemCheckup
                 Mesgul(false);
             }
 
-            lblSon.Text = "En son sürüm: " + uzak.surum + (string.IsNullOrEmpty(uzak.tarih) ? "" : "  (" + uzak.tarih + ")");
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("Sürüm " + uzak.surum + " notları:");
-            sb.AppendLine();
-            sb.AppendLine(string.IsNullOrEmpty(uzak.notlar) ? "(not yok)" : uzak.notlar.Replace("\r\n", "\n").Replace("\n", "\r\n"));
+            string yerel = Ortak.YerelSurum();
+            lblSon.Text = "En son sürüm: " + uzak.surum + (string.IsNullOrEmpty(uzak.tarih) ? "" : "  (" + GuzelTarih(uzak.tarih) + ")");
+            string notlar = NotMetni(uzak, yerel);
             if (degisen.Count > 0)
-            {
-                sb.AppendLine();
-                sb.AppendLine("İndirilecek dosyalar:");
-                foreach (DosyaBilgi d in degisen) sb.AppendLine("  • " + d.hedef + "  (" + Boyut(d.boyut) + ")");
-            }
-            txtNotlar.Text = sb.ToString();
+                notlar += "Güncellenecek dosyalar:\r\n" + string.Join("\r\n", degisen.Select(d => "   " + d.hedef + "  (" + Boyut(d.boyut) + ")")) + "\r\n";
+            txtNotlar.Text = notlar;
 
-            bool yeniSurum = Ortak.YeniMi(uzak.surum, Ortak.YerelSurum());
+            bool yeniSurum = Ortak.YeniMi(uzak.surum, yerel);
             if (degisen.Count == 0)
             {
                 Durum("Her şey güncel ✓", Yesil);
@@ -201,8 +224,7 @@ namespace SistemCheckup
             }
             else
             {
-                long toplam = degisen.Sum(d => d.boyut);
-                Durum((yeniSurum ? "Yeni sürüm hazır" : "Eksik veya bozuk dosyalar onarılacak") + " — " + degisen.Count + " dosya, " + Boyut(toplam), Vurgu);
+                Durum((yeniSurum ? "Yeni sürüm hazır" : "Eksik veya bozuk dosyalar onarılacak") + " · indirme boyutu " + Boyut(uzak.paket != null ? uzak.paket.boyut : 0), Vurgu);
                 if (otomatik) { otomatik = false; await Guncelle(); }
             }
         }
@@ -212,35 +234,30 @@ namespace SistemCheckup
             List<DosyaBilgi> liste = new List<DosyaBilgi>();
             foreach (DosyaBilgi d in m.dosyalar ?? new List<DosyaBilgi>())
             {
-                string yol = Ortak.HedefYol(d);
+                string yol = Ortak.HedefYol(d.hedef);
                 if (!File.Exists(yol) || !string.Equals(Ortak.Sha256(yol), d.sha256, StringComparison.OrdinalIgnoreCase)) liste.Add(d);
             }
             return liste;
         }
 
-        static bool Yazilabilir()
+        // Zip içindeki yolu (ör. "SistemCheckup\app\x.ps1") manifestteki biçime ("app/x.ps1") çevirir.
+        static string ZipYolu(ZipArchiveEntry e)
         {
-            try
-            {
-                string test = Path.Combine(Ortak.KokDizin, ".yazma_testi");
-                File.WriteAllText(test, "1");
-                File.Delete(test);
-                return true;
-            }
-            catch { return false; }
+            string ad = e.FullName.Replace('\\', '/');
+            int i = ad.IndexOf('/');
+            return i >= 0 && ad.Substring(0, i).Equals("SistemCheckup", StringComparison.OrdinalIgnoreCase) ? ad.Substring(i + 1) : ad;
         }
 
         async Task Guncelle()
         {
-            if (uzak == null || degisen.Count == 0) return;
+            if (uzak == null || degisen.Count == 0 || uzak.paket == null) return;
 
-            if (!Yazilabilir())
+            if (!Ortak.YazilabilirMi())
             {
                 // Program Files gibi korumalı bir klasördeyiz: yönetici olarak yeniden aç
                 try
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo(Application.ExecutablePath, "--otomatik") { Verb = "runas", UseShellExecute = true };
-                    Process.Start(psi);
+                    Process.Start(new ProcessStartInfo(Application.ExecutablePath, "--otomatik") { Verb = "runas", UseShellExecute = true });
                     mesgul = false;
                     Close();
                 }
@@ -253,32 +270,45 @@ namespace SistemCheckup
             string gecici = Path.Combine(Path.GetTempPath(), "SistemCheckup_yama_" + Guid.NewGuid().ToString("N"));
             List<DosyaBilgi> liste = degisen;
             Manifest m = uzak;
-            long toplam = Math.Max(1, liste.Sum(d => d.boyut));
             bool kendisi = false;
             try
             {
                 Directory.CreateDirectory(gecici);
-                long biten = 0;
-                for (int i = 0; i < liste.Count; i++)
+                string zip = Path.Combine(gecici, "paket.zip");
+                long toplam = Math.Max(1, m.paket.boyut);
+                Durum("İndiriliyor: " + m.paket.ad + " (" + Boyut(m.paket.boyut) + ")", Color.DimGray);
+                await Task.Run(() => Ortak.Indir(Ortak.PaketUrl(m), zip, n =>
+                    BeginInvoke((Action)(() => bar.Value = (int)Math.Min(90, 90 * n / toplam)))));
+                string paketHash = await Task.Run(() => Ortak.Sha256(zip));
+                if (!string.Equals(paketHash, m.paket.sha256, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("İndirilen paket doğrulanamadı (SHA256 uyuşmuyor). Hiçbir dosya değiştirilmedi.");
+
+                Durum("Paket doğrulandı, dosyalar çıkarılıyor...", Color.DimGray);
+                Dictionary<string, string> cikan = await Task.Run(() =>
                 {
-                    DosyaBilgi d = liste[i];
-                    Durum("İndiriliyor (" + (i + 1) + "/" + liste.Count + "): " + d.hedef, Color.DimGray);
-                    string tmp = Path.Combine(gecici, i + "_" + Path.GetFileName(d.hedef));
-                    long once = biten;
-                    await Task.Run(() => Ortak.Indir(Ortak.DosyaUrl(m, d), tmp, n =>
-                        BeginInvoke((Action)(() => bar.Value = (int)Math.Min(100, 100 * (once + n) / toplam)))));
-                    string hash = await Task.Run(() => Ortak.Sha256(tmp));
-                    if (!string.Equals(hash, d.sha256, StringComparison.OrdinalIgnoreCase))
-                        throw new InvalidDataException(d.hedef + " doğrulanamadı (SHA256 uyuşmuyor). Hiçbir dosya değiştirilmedi.");
-                    biten += d.boyut;
-                }
+                    Dictionary<string, string> sonuc = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    using (ZipArchive arsiv = ZipFile.OpenRead(zip))
+                    {
+                        for (int i = 0; i < liste.Count; i++)
+                        {
+                            DosyaBilgi d = liste[i];
+                            ZipArchiveEntry giris = arsiv.Entries.FirstOrDefault(e => string.Equals(ZipYolu(e), d.hedef, StringComparison.OrdinalIgnoreCase));
+                            if (giris == null) throw new InvalidDataException(d.hedef + " pakette bulunamadı. Hiçbir dosya değiştirilmedi.");
+                            string tmp = Path.Combine(gecici, i + "_" + Path.GetFileName(d.hedef));
+                            giris.ExtractToFile(tmp, true);
+                            if (!string.Equals(Ortak.Sha256(tmp), d.sha256, StringComparison.OrdinalIgnoreCase))
+                                throw new InvalidDataException(d.hedef + " doğrulanamadı (SHA256 uyuşmuyor). Hiçbir dosya değiştirilmedi.");
+                            sonuc[d.hedef] = tmp;
+                        }
+                    }
+                    return sonuc;
+                });
+                bar.Value = 95;
 
                 Durum("Dosyalar yerine koyuluyor...", Color.DimGray);
-                for (int i = 0; i < liste.Count; i++)
+                foreach (DosyaBilgi d in liste)
                 {
-                    DosyaBilgi d = liste[i];
-                    string hedef = Ortak.HedefYol(d);
-                    string tmp = Path.Combine(gecici, i + "_" + Path.GetFileName(d.hedef));
+                    string hedef = Ortak.HedefYol(d.hedef);
                     Directory.CreateDirectory(Path.GetDirectoryName(hedef));
                     if (File.Exists(hedef))
                     {
@@ -290,12 +320,12 @@ namespace SistemCheckup
                         }
                         else File.Delete(hedef);
                     }
-                    File.Move(tmp, hedef);
+                    File.Move(cikan[d.hedef], hedef);
                 }
                 SurumuKaydet();
                 bar.Value = 100;
                 degisen = new List<DosyaBilgi>();
-                txtNotlar.Text = txtNotlar.Text.Replace("İndirilecek dosyalar:", "Güncellenen dosyalar:");
+                txtNotlar.Text = txtNotlar.Text.Replace("Güncellenecek dosyalar:", "Güncellenen dosyalar:");
                 KuruluGoster();
                 Durum("Güncelleme tamamlandı ✓  Sürüm " + m.surum + (kendisi ? " (güncelleyici de yenilendi)" : ""), Yesil);
             }
@@ -320,14 +350,14 @@ namespace SistemCheckup
 
         void Baslat()
         {
-            if (!File.Exists(Ortak.BaslaticiYolu)) { Durum("SistemCheckup.exe bulunamadı. Önce güncelleyin.", Kirmizi); return; }
-            Ortak.Ac(Ortak.BaslaticiYolu, null);
+            if (!File.Exists(Ortak.AnaUygulamaYolu)) { Durum("SistemCheckup.exe bulunamadı. Önce güncelleyin.", Kirmizi); return; }
+            Ortak.Ac(Ortak.AnaUygulamaYolu, null);
             Close();
         }
 
         static string Boyut(long b)
         {
-            if (b >= 1048576) return (b / 1048576.0).ToString("0.0") + " MB";
+            if (b >= 1048576) return (b / 1048576.0).ToString("0.0", Tr) + " MB";
             return Math.Max(1, b / 1024) + " KB";
         }
     }

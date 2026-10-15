@@ -1,0 +1,60 @@
+SİSTEM CHECKUP
+==============
+
+Bilgisayarınızdaki parçaların sağlıklı çalışıp çalışmadığını kontrol eden ücretsiz bir program.
+Disk/SSD sağlığı, ekran kartı, bellek, pil (dizüstü), sürücüler ve hata kayıtlarını inceler;
+güncel olmayan sürücüler için indirme bağlantısı verir.
+
+
+KURULUM
+-------
+1. İndirdiğiniz zip dosyasına sağ tıklayın ve "Tümünü ayıkla..." deyin.
+   (Zip'in içinden doğrudan çalıştırmayın, çalışmaz.)
+2. Çıkan "SistemCheckup" klasörünü istediğiniz yere taşıyabilirsiniz (ör. Belgeler).
+3. Klasördeki SistemCheckup.exe dosyasını açın.
+4. İlk açılışta masaüstüne ve Başlat menüsüne kısayol eklemek isteyip istemediğiniz sorulur.
+
+"Windows bilgisayarınızı korudu" uyarısı çıkarsa:
+   Program dijital olarak imzalı olmadığı için Windows ilk açılışta bu uyarıyı gösterebilir.
+   "Ek bilgi" yazısına tıklayıp "Yine de çalıştır" deyin. Kaynak kodun tamamı GitHub'dadır.
+
+
+KULLANIM
+--------
+- Hızlı tarama (30-60 sn): Parçaların sağlığı, sürücüler ve hata kayıtları. Bilgisayarı yormaz.
+- Tam tarama (yaklaşık 2 dk): Ek olarak disk, işlemci ve bellek hız testleri.
+  Her diske geçici olarak 1 GB dosya yazılıp silinir; işlemci 10 saniye tam güçte çalışır.
+
+- "Yönetici izniyle tara" açıksa Windows izin ister. Bu izinle SSD'nin kalan ömrü ve sıcaklığı
+  da okunur. Program yalnızca bilgi okur, hiçbir ayarı değiştirmez.
+
+Sonuçta iki puan görürsünüz:
+- Donanım sağlığı: Parçaların fiziksel durumu. Düşükse bir parça arızalanıyor olabilir.
+- Bakım ve güncellemeler: Sürücüler, güncellemeler, disk alanı. Düşük olması bilgisayarın
+  bozuk olduğu anlamına gelmez; birkaç tıkla düzeltilebilecek işlerdir.
+
+Her tarama "Raporlar" klasörüne kaydedilir ve bir sonraki taramada neyin değiştiği gösterilir.
+
+
+GÜNCELLEME
+----------
+Yeni sürüm çıktığında Sistem Checkup penceresinin üstünde sarı bir bant belirir.
+"Şimdi güncelle" düğmesine basmanız yeterlidir. Elle denetlemek için Guncelleyici.exe'yi açın.
+Yalnızca değişen dosyalar indirilir ve her dosya doğrulanır.
+
+
+KALDIRMA
+--------
+Klasördeki Kaldir.exe'yi açın (veya programın altındaki "Kaldır" bağlantısına tıklayın).
+Program dosyaları, raporlar, ayarlar ve kısayollar silinir.
+
+
+GİZLİLİK
+--------
+Tarama tamamen bilgisayarınızda yapılır. Raporlar yalnızca "Raporlar" klasörüne kaydedilir,
+hiçbir yere gönderilmez. İnternete yalnızca şu istekler yapılır: NVIDIA sürücü sürümü sorgusu,
+Windows Update sürücü taraması ve GitHub'dan güncelleme denetimi.
+
+
+Kaynak kod ve tüm sürümler: https://github.com/emiraneren/SistemCheckup
+Lisans: MIT

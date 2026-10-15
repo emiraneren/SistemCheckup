@@ -1,0 +1,101 @@
+{
+    "surum":  "1.1.0",
+    "etiket":  "v1.1.0",
+    "tarih":  "2026-10-15",
+    "notlar":  [
+                   "Yeni pencereli arayüz: tarama ilerlemesi canlı görünüyor, sonuçlar uygulama içinde gösteriliyor",
+                   "Hızlı tarama (30-60 sn) ve tam tarama (hız testleriyle, yaklaşık 2 dk) seçeneği",
+                   "Tek puan yerine iki puan: Donanım sağlığı ve Bakım/güncellemeler; açıklamalar daha anlaşılır",
+                   "Her tarama saklanıyor; önceki taramaya göre nelerin değiştiği ve hangi sorunların çözüldüğü gösteriliyor",
+                   "Dizüstü bilgisayarlar için pil sağlığı (kalan kapasite ve şarj döngüsü)",
+                   "İlk açılışta masaüstü ve Başlat menüsü kısayolu seçeneği",
+                   "Kaldir.exe ile programı tüm dosyaları ve kısayollarıyla kaldırma",
+                   "Güncelleyici artık tek bir zip paketi indiriyor ve atlanan tüm sürümlerin notlarını gösteriyor",
+                   "İşlemci ısınma testi artık frekansa bakıyor; arka plandaki programlar yüzünden yanlış uyarı vermiyor"
+               ],
+    "gecmis":  [
+                   {
+                       "surum":  "1.1.0",
+                       "tarih":  "2026-10-15",
+                       "notlar":  [
+                                      "Yeni pencereli arayüz: tarama ilerlemesi canlı görünüyor, sonuçlar uygulama içinde gösteriliyor",
+                                      "Hızlı tarama (30-60 sn) ve tam tarama (hız testleriyle, yaklaşık 2 dk) seçeneği",
+                                      "Tek puan yerine iki puan: Donanım sağlığı ve Bakım/güncellemeler; açıklamalar daha anlaşılır",
+                                      "Her tarama saklanıyor; önceki taramaya göre nelerin değiştiği ve hangi sorunların çözüldüğü gösteriliyor",
+                                      "Dizüstü bilgisayarlar için pil sağlığı (kalan kapasite ve şarj döngüsü)",
+                                      "İlk açılışta masaüstü ve Başlat menüsü kısayolu seçeneği",
+                                      "Kaldir.exe ile programı tüm dosyaları ve kısayollarıyla kaldırma",
+                                      "Güncelleyici artık tek bir zip paketi indiriyor ve atlanan tüm sürümlerin notlarını gösteriyor",
+                                      "İşlemci ısınma testi artık frekansa bakıyor; arka plandaki programlar yüzünden yanlış uyarı vermiyor"
+                                  ]
+                   },
+                   {
+                       "value":  [
+                                     {
+                                         "surum":  "1.0.2",
+                                         "tarih":  "2026-10-15",
+                                         "notlar":  [
+                                                        "Güncelleyici yeni sürümleri artık beklemeden görüyor."
+                                                    ]
+                                     },
+                                     {
+                                         "surum":  "1.0.1",
+                                         "tarih":  "2026-10-15",
+                                         "notlar":  [
+                                                        "Güncelleyici penceresinde küçük görünüm düzeltmeleri."
+                                                    ]
+                                     },
+                                     {
+                                         "surum":  "1.0.0",
+                                         "tarih":  "2026-10-15",
+                                         "notlar":  [
+                                                        "İlk sürüm: disk, ekran kartı, bellek ve sürücü kontrolü, hız testleri ve otomatik güncelleme."
+                                                    ]
+                                     }
+                                 ],
+                       "Count":  3
+                   }
+               ],
+    "paket":  {
+                  "ad":  "SistemCheckup-v1.1.0.zip",
+                  "sha256":  "d80f223c037dade7a379334d736cddfd0943b63f9253f70cf18c623b8d499a43",
+                  "boyut":  143196
+              },
+    "dosyalar":  [
+                     {
+                         "hedef":  "app/rapor_sablon.html",
+                         "sha256":  "eaf26a854f460ffaf0b2043992a664301c1b02d5ed09e8422d26573eca3aba71",
+                         "boyut":  35794
+                     },
+                     {
+                         "hedef":  "app/SCBench.cs",
+                         "sha256":  "ff324f9b2db7e28f884741e8ba138ebe9069465e64d75d8355c22fcc301fe2c3",
+                         "boyut":  9626
+                     },
+                     {
+                         "hedef":  "app/SistemCheckup.ps1",
+                         "sha256":  "5399897aed41db7e807a4829afbb5c132b22eabdb6a1a628111ca08e023f9379",
+                         "boyut":  59057
+                     },
+                     {
+                         "hedef":  "BENIOKU.txt",
+                         "sha256":  "bd513be81a27766bdde916677bc71498796ed8a388048a0633e6772dfc8a1cdd",
+                         "boyut":  2764
+                     },
+                     {
+                         "hedef":  "Guncelleyici.exe",
+                         "sha256":  "a8375f7b85f7679a7eb7ca93d9f3f2cbde69344a479d5d83469a37b3f4880d39",
+                         "boyut":  54272
+                     },
+                     {
+                         "hedef":  "Kaldir.exe",
+                         "sha256":  "9d62e28d91e3edd95ef0cd8dbb07516252e1469c60a14534bc0859d635ea6404",
+                         "boyut":  37376
+                     },
+                     {
+                         "hedef":  "SistemCheckup.exe",
+                         "sha256":  "3bd74509f96a1dc7f5170cf59ba39a2ab81fef9dc58a8b2c63ba3f1ac85e509d",
+                         "boyut":  76800
+                     }
+                 ]
+}

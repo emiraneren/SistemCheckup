@@ -39,10 +39,13 @@ nav a:hover { background: var(--panel); color: var(--text); }
 nav .sp { flex: 1; }
 nav button { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; cursor: pointer; font: inherit; white-space: nowrap; }
 header.hero { display: grid; grid-template-columns: auto 1fr; gap: 28px; align-items: center; padding: 32px 0 20px; }
-.ring { position: relative; width: 132px; height: 132px; }
+.scorecard { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center; }
+.scorecard .chips { margin-top: 8px; }
+.clist { margin: 0; padding-left: 18px; } .clist li { margin: 2px 0; }
+.ring { position: relative; width: 108px; height: 108px; flex: none; }
 .ring svg { transform: rotate(-90deg); }
 .ring .val { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
-.ring .val b { font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums; }
+.ring .val b { font-size: 32px; line-height: 1; font-variant-numeric: tabular-nums; display: block; }
 .ring .val span { font-size: 12px; color: var(--muted); display: block; }
 h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.01em; }
 .sub { color: var(--muted); }
@@ -117,7 +120,7 @@ code { background: var(--panel2); border: 1px solid var(--line); border-radius: 
 <body>
 <nav><div class="wrap">
   <a href="#ozet">Özet</a><a href="#donanim">Donanım</a><a href="#islemci">İşlemci</a><a href="#ekran">Ekran Kartı</a>
-  <a href="#bellek">Bellek</a><a href="#depolama">Depolama</a><a href="#suruculer">Sürücüler</a><a href="#kararlilik">Kararlılık</a>
+  <a href="#bellek">Bellek</a><a href="#depolama">Depolama</a><a href="#suruculer">Sürücüler</a><a href="#kararlilik">Kararlılık</a><a href="#pil">Pil</a>
   <span class="sp"></span><button id="tema" type="button">Tema</button><button type="button" onclick="window.print()">Yazdır / PDF</button>
 </div></nav>
 <div class="wrap" id="app"></div>
@@ -147,36 +150,66 @@ function render() {
   if (!D) { document.getElementById('app').innerHTML = '<p style="padding:40px 0">Rapor verisi bulunamadı. Bu dosya bir şablondur; <code>SistemCheckup.exe</code> çalıştırın.</p>'; return; }
   const B = arr(D.bulgular);
   const n = s => B.filter(b => b.seviye === s).length;
-  const score = D.puan;
-  const sc = score >= 80 ? 'var(--ok)' : score >= 60 ? 'var(--warn)' : 'var(--bad)';
-  const verdict = score >= 85 ? 'Sisteminiz genel olarak sağlıklı' : score >= 65 ? 'Sisteminiz çalışıyor, ama ilgilenilmesi gereken noktalar var' : 'Sisteminizde dikkat edilmesi gereken sorunlar var';
-  const C = 2 * Math.PI * 56;
+  const P = typeof D.puan === 'object' && D.puan ? D.puan : { donanim: D.puan, bakim: null };
+  const C = 2 * Math.PI * 46;
   const S = D.sistem, cpu = D.cpu, ram = D.ram;
   const gpus = arr(D.gpu).filter(g => !g.sanal);
+  const nT = (tur, s) => B.filter(b => b.tur === tur && b.seviye === s).length;
   let h = '';
 
+  const verdict = P.donanim >= 85 ? (P.bakim != null && P.bakim < 75 ? 'Donanımınız sağlıklı, birkaç bakım işi var' : 'Bilgisayarınız sağlıklı görünüyor')
+    : P.donanim >= 60 ? 'Donanımda dikkat edilmesi gereken noktalar var' : 'Donanımda ciddi sorun belirtileri var';
+  const ring = (val, label, desc, tur) => {
+    const col = val >= 85 ? 'var(--ok)' : val >= 60 ? 'var(--warn)' : 'var(--bad)';
+    const word = val >= 90 ? 'Çok iyi' : val >= 75 ? 'İyi' : val >= 50 ? 'Dikkat' : 'Sorunlu';
+    const sorun = nT(tur, 'bad'), uyari = nT(tur, 'warn');
+    return `<div class="card scorecard"><div class="ring"><svg width="108" height="108"><circle cx="54" cy="54" r="46" fill="none" stroke="var(--bar-bg)" stroke-width="10"/>
+      <circle cx="54" cy="54" r="46" fill="none" stroke="${col}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${C * val / 100} ${C}"/></svg>
+      <div class="val"><div><b>${val}</b><span>${word}</span></div></div></div>
+      <div><div class="hw-title">${esc(label)}</div><div class="muted">${desc}</div>
+      <div class="chips">${sorun ? `<span class="chip bad">${sorun} sorun</span>` : ''}${uyari ? `<span class="chip warn">${uyari} uyarı</span>` : ''}${!sorun && !uyari ? '<span class="chip ok">sorun yok</span>' : ''}</div></div></div>`;
+  };
+
   // ---------- hero
-  h += `<header class="hero" id="ozet">
-    <div class="ring"><svg width="132" height="132"><circle cx="66" cy="66" r="56" fill="none" stroke="var(--bar-bg)" stroke-width="12"/>
-      <circle cx="66" cy="66" r="56" fill="none" stroke="${sc}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C * score / 100} ${C}"/></svg>
-      <div class="val"><div><b>${score}</b><span>/ 100</span></div></div></div>
-    <div><h1>${esc(verdict)}</h1>
-      <div class="sub">${esc(S.bilgisayar)} · ${esc(S.isletimSistemi)} ${esc(S.surum)} · ${esc(D.meta.tarih)} tarihli tarama (${D.meta.sureSn} sn)</div>
-      <div class="chips">
-        ${n('bad') ? `<span class="chip bad">${n('bad')} sorun</span>` : ''}
-        ${n('warn') ? `<span class="chip warn">${n('warn')} uyarı</span>` : ''}
-        <span class="chip ok">${n('ok')} sağlıklı</span>
-        ${n('info') ? `<span class="chip info">${n('info')} bilgi</span>` : ''}
-        <span class="chip muted">${D.meta.yonetici ? 'Yönetici modu · tam veri' : 'Sınırlı mod · yönetici değil'}</span>
-      </div></div></header>`;
+  h += `<header id="ozet" style="padding:28px 0 8px"><h1>${esc(verdict)}</h1>
+      <div class="sub">${esc(S.bilgisayar)} · ${esc(S.isletimSistemi)} ${esc(S.surum)} · ${esc(D.meta.tarih)} · ${D.meta.testYapildi ? 'tam tarama' : 'hızlı tarama'} (${D.meta.sureSn} sn) · ${D.meta.yonetici ? 'yönetici izniyle' : 'yönetici izni olmadan'}</div></header>
+    <div class="grid g2" style="margin-top:16px">
+      ${ring(P.donanim, 'Donanım sağlığı', 'Parçaların fiziksel durumu: disk ve SSD sağlığı, sıcaklıklar, donanım hata kayıtları' + (S.dizustu ? ', pil' : '') + '. Düşükse bir parça arızalanıyor olabilir.', 'donanim')}
+      ${P.bakim != null ? ring(P.bakim, 'Bakım ve güncellemeler', 'Sürücüler, Windows güncellemeleri, disk alanı ve ayarlar. Düşük olması donanımın bozuk olduğu anlamına <b>gelmez</b>; birkaç tıkla düzeltilebilecek işlerdir.', 'bakim') : ''}
+    </div>`;
+
+  // ---------- comparison
+  const K = D.karsilastirma;
+  if (K) {
+    const dl = (a, b) => b == null || a == null ? '' : b > a ? `<b style="color:var(--ok)">↑ ${b - a}</b>` : b < a ? `<b style="color:var(--bad)">↓ ${a - b}</b>` : '<span class="muted">değişmedi</span>';
+    const yon = { iyi: 'var(--ok)', kotu: 'var(--bad)', ayni: 'var(--muted)' };
+    const degis = arr(K.degisimler).map(d => `<li><span>${esc(d.ad)}</span> <span class="muted">${fmt(d.once, d.once < 100 ? 1 : 0)} → </span><b style="color:${yon[d.yon]}">${fmt(d.simdi, d.simdi < 100 ? 1 : 0)} ${esc(d.birim)}</b>${d.farkYuzde != null ? ` <span class="muted">(${d.farkYuzde > 0 ? '+' : ''}${fmt(d.farkYuzde, 1)}%)</span>` : ''}</li>`).join('');
+    h += `<section><h2>Önceki taramaya göre <small>${esc(K.tarih)}</small></h2><div class="card"><div class="grid g2">
+      <div>${kv([['Donanım sağlığı', `${K.donanimOnce} → ${P.donanim} ${dl(K.donanimOnce, P.donanim)}`], ['Bakım', `${K.bakimOnce ?? '—'} → ${P.bakim ?? '—'} ${dl(K.bakimOnce, P.bakim)}`]])}
+        ${arr(K.cozulen).length ? `<p style="margin:12px 0 4px"><b style="color:var(--ok)">✓ Çözülen ${arr(K.cozulen).length} konu:</b></p><ul class="clist">${arr(K.cozulen).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+        ${arr(K.yeni).length ? `<p style="margin:12px 0 4px"><b style="color:var(--warn)">Yeni ${arr(K.yeni).length} konu:</b></p><ul class="clist">${arr(K.yeni).map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
+        ${!arr(K.cozulen).length && !arr(K.yeni).length ? '<p class="muted">Sorun listesinde değişiklik yok.</p>' : ''}</div>
+      <div>${degis ? `<div class="label" style="margin-bottom:6px">Ölçüm değişimleri</div><ul class="clist">${degis}</ul>` : `<p class="muted">${D.meta.testYapildi && K.tamTarama ? 'Ölçümlerde kayda değer değişim yok.' : 'Hız ölçümlerini karşılaştırmak için iki taramanın da "Tam tarama" olması gerekir.'}</p>`}</div>
+    </div></div></section>`;
+  }
 
   // ---------- findings
   const act = B.filter(b => b.seviye !== 'ok');
   const fin = b => `<div class="card finding ${b.seviye}"><div class="ic ${b.seviye}">${ICON[b.seviye]}</div>
-      <div><div class="k">${esc(b.kategori)} · ${SEV[b.seviye]}</div><div class="t">${esc(b.baslik)}</div>${b.detay ? `<div class="d">${esc(b.detay)}</div>` : ''}</div>
+      <div><div class="k">${esc(b.kategori)} · ${b.tur === 'bakim' ? 'Bakım' : 'Donanım'} · ${SEV[b.seviye]}</div><div class="t">${esc(b.baslik)}</div>${b.detay ? `<div class="d">${esc(b.detay)}</div>` : ''}</div>
       <div class="a">${link(b.link, b.linkMetin, b.seviye === 'ok' || b.seviye === 'info' ? 'btn ghost' : 'btn')}</div></div>`;
-  h += `<section><h2>Yapılması gerekenler <small>${act.length ? 'önem sırasına göre' : 'her şey yolunda'}</small></h2><div class="stack">${act.map(fin).join('') || '<div class="note">Herhangi bir sorun veya uyarı bulunmadı.</div>'}</div>
-    <details class="okfold" open><summary>Sağlıklı bulunan ${n('ok')} kontrol</summary><div class="stack">${B.filter(b => b.seviye === 'ok').map(fin).join('')}</div></details></section>`;
+  h += `<section><h2>Yapılması gerekenler <small>${act.length ? 'önem sırasına göre · "Bilgi" olanlar sorun değildir' : 'her şey yolunda'}</small></h2><div class="stack">${act.map(fin).join('') || '<div class="note">Herhangi bir sorun veya uyarı bulunmadı.</div>'}</div>
+    <details class="okfold"><summary>Sağlıklı bulunan ${n('ok')} kontrol</summary><div class="stack">${B.filter(b => b.seviye === 'ok').map(fin).join('')}</div></details></section>`;
+
+  // ---------- battery
+  if (D.pil) {
+    const pl = arr(D.pil.piller);
+    h += `<section id="pil"><h2>Pil <small>şarj %${fmt(D.pil.sarjYuzde)} · ${D.pil.prizde ? 'prize takılı' : 'pille çalışıyor'}</small></h2><div class="grid g2">${pl.map(p => `<div class="card">
+      <div class="hw-title">${esc(p.ad || 'Pil')}</div>
+      <div class="brow"><div>Kalan kapasite</div>${bar(p.saglikYuzde, p.saglikYuzde < 60 ? 'bad' : p.saglikYuzde < 80 ? 'warn' : '')}<div class="v">%${fmt(p.saglikYuzde)}</div></div>
+      ${kv([['Şu an tutabildiği', fmt(p.doluMWh / 1000, 1) + ' Wh'], ['Yeniyken', fmt(p.tasarimMWh / 1000, 1) + ' Wh'], ['Şarj döngüsü', p.dongu != null ? fmt(p.dongu) : 'bildirilmiyor'], ['Tür', esc(p.kimya)]])}
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Piller kullanıldıkça kapasite kaybeder; %80'in üstü iyi, %60'ın altı değişim zamanı demektir.</p></div>`).join('') || '<div class="note">Pil bilgisi okunamadı.</div>'}</div></section>`;
+  }
 
   // ---------- hardware overview
   const g0 = gpus[0];
@@ -370,8 +403,11 @@ function render() {
     <div class="card"><div class="label">En çok çöken uygulamalar</div>${arr(O.enCokCoken).map(a => `<div style="display:flex;justify-content:space-between;gap:8px"><span style="overflow-wrap:anywhere">${esc(a.uygulama)}</span><b>${a.adet}</b></div>`).join('') || '<div class="muted">yok</div>'}</div>
   </div></section>`;
 
-  h += `<footer>Sistem Checkup ${esc(D.meta.surum)} · Yeniden taramak için <code>SistemCheckup.exe</code>, güncellemek için <code>Guncelleyici.exe</code> dosyasını çalıştırın. Raporlar <code>Raporlar</code> klasörüne kaydedilir.
-    ${D.meta.yonetici ? '' : '<br>Not: Yönetici izni verilmediği için SSD ömür/sıcaklık bilgileri eksik.'}<br>İşlemci çekirdek sıcaklığını Windows doğrudan vermez; ayrıntılı sensör takibi için HWiNFO kullanabilirsiniz.</footer>`;
+  h += `<footer>Sistem Checkup ${esc(D.meta.surum)} · Yeni tarama için <code>SistemCheckup.exe</code>'yi açın. Raporlar <code>Raporlar</code> klasörüne kaydedilir.
+    ${D.meta.yonetici ? '' : '<br>Not: Yönetici izni verilmediği için SSD ömür/sıcaklık bilgileri eksik.'}
+    <br>Windows Ayarları'nı açan butonlarda (ör. "İsteğe bağlı güncellemeleri aç") tarayıcınız "Ayarlar açılsın mı?" diye sorabilir; "Aç" demeniz yeterlidir. Aynı butonlar Sistem Checkup penceresinde doğrudan çalışır.
+    <br>İşlemci çekirdek sıcaklığını Windows doğrudan vermez; ayrıntılı sensör takibi için HWiNFO kullanabilirsiniz.</footer>`;
+  if (!D.pil) document.querySelector('nav a[href="#pil"]')?.remove();
 
   document.getElementById('app').innerHTML = h;
 }

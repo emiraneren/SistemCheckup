@@ -1,11 +1,14 @@
-﻿# Yeni sürüm (yama) yayınlar: derler, manifest üretir, commit + tag atar ve GitHub Release oluşturur.
-# Kullanıcılar Guncelleyici.exe'ye bastığında bu sürümdeki değişen dosyaları indirir.
+﻿# Yeni sürüm (yama) yayınlar: derler, zip paketini ve manifest.json'u üretir, commit + tag atar ve GitHub Release oluşturur.
+# Release sayfasında yalnızca zip ve BENIOKU.txt görünür. Güncelleyici manifesti etiketli commit'ten okur,
+# zip'i indirir ve yalnızca değişen dosyaları yerine koyar.
 #
-#   .\yayinla.ps1 -Surum 1.0.1 -Notlar "Disk testine sıcaklık eklendi"
-#   .\yayinla.ps1 -Surum 1.0.1 -Taslak     # yalnızca derler ve dist\'i hazırlar, hiçbir şey göndermez
+#   .\yayinla.ps1 -Surum 1.1.1 -Notlar "Disk testine sıcaklık eklendi", "Raporda yazım hataları düzeltildi"
+#   .\yayinla.ps1 -Surum 1.1.1 -Notlar "..." -Taslak     # yalnızca derler ve dist\'i hazırlar, hiçbir şey göndermez
+#
+# Notları kullanıcının anlayacağı dilde, madde madde yazın (güncelleyicide aynen görünür).
 param(
     [Parameter(Mandatory = $true)][string]$Surum,
-    [string]$Notlar = '',
+    [Parameter(Mandatory = $true)][string[]]$Notlar,
     [switch]$Taslak
 )
 
@@ -15,6 +18,9 @@ Set-Location $kok
 $ayar = Get-Content -Raw -Encoding UTF8 (Join-Path $kok 'proje.json') | ConvertFrom-Json
 $etiket = "v$Surum"
 $yeni = [version]$Surum
+$tarih = Get-Date -Format 'yyyy-MM-dd'
+$utf8 = New-Object Text.UTF8Encoding($false)
+$Notlar = @($Notlar | ForEach-Object { "$_".Trim() } | Where-Object { $_ })
 
 if (-not $Taslak) {
     if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { throw 'GitHub CLI (gh) bulunamadı.' }
@@ -26,50 +32,61 @@ if (-not $Taslak) {
     if ($onceki -and $yeni -le $onceki) { throw "Sürüm $Surum, son yayınlanan sürümden ($onceki) büyük olmalı." }
 }
 
+# Sürüm geçmişi (en yeni başta)
+$gecmisYol = Join-Path $kok 'surumler.json'
+$gecmis = @()
+if (Test-Path $gecmisYol) { $gecmis = @([IO.File]::ReadAllText($gecmisYol, [Text.Encoding]::UTF8) | ConvertFrom-Json) }
+$gecmis = @([ordered]@{ surum = $Surum; tarih = $tarih; notlar = $Notlar }) + @($gecmis | Where-Object { $_.surum -ne $Surum })
+
 & (Join-Path $kok 'build.ps1') -Surum $Surum
 $dist = Join-Path $kok 'dist'
+$paket = Join-Path $dist 'SistemCheckup'
 
-# Yamalanabilir dosyalar: release'e tek tek yüklenir, güncelleyici yalnızca değişenleri indirir
-$dosyalar = @(
-    @{ yol = 'SistemCheckup.exe'; hedef = 'SistemCheckup.exe' }
-    @{ yol = 'Guncelleyici.exe'; hedef = 'Guncelleyici.exe' }
-) + @(Get-ChildItem (Join-Path $dist 'app') -File | ForEach-Object { @{ yol = "app\$($_.Name)"; hedef = "app/$($_.Name)" } })
+# Paketteki her dosyanın özeti (surum.json hariç; onu güncelleyici kendisi yazar)
+$dosyalar = @(Get-ChildItem $paket -Recurse -File | ForEach-Object {
+    $goreli = $_.FullName.Substring($paket.Length + 1).Replace('\', '/')
+    [ordered]@{ hedef = $goreli; sha256 = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(); boyut = $_.Length }
+} | Sort-Object { $_.hedef })
 
-$liste = foreach ($d in $dosyalar) {
-    $tam = Join-Path $dist $d.yol
-    [ordered]@{ ad = [IO.Path]::GetFileName($tam); hedef = $d.hedef; sha256 = (Get-FileHash $tam -Algorithm SHA256).Hash.ToLower(); boyut = (Get-Item $tam).Length }
-}
-$adlar = $liste | ForEach-Object { $_.ad }
-if (($adlar | Select-Object -Unique).Count -ne $adlar.Count) { throw 'Aynı ada sahip iki dosya var; release dosya adları benzersiz olmalı.' }
+$manifest = [ordered]@{ surum = $Surum; etiket = $etiket; tarih = $tarih; notlar = $Notlar; gecmis = @($gecmis | Select-Object -First 30); paket = $null; dosyalar = $dosyalar }
+[IO.File]::WriteAllText((Join-Path $paket 'app\surum.json'), ($manifest | ConvertTo-Json -Depth 6), $utf8)
 
-$manifest = [ordered]@{ surum = $Surum; etiket = $etiket; tarih = (Get-Date -Format 'yyyy-MM-dd'); notlar = $Notlar; dosyalar = @($liste) }
-$json = $manifest | ConvertTo-Json -Depth 5
-$utf8 = New-Object Text.UTF8Encoding($false)
-[IO.File]::WriteAllText((Join-Path $dist 'manifest.json'), $json, $utf8)
-[IO.File]::WriteAllText((Join-Path $dist 'app\surum.json'), $json, $utf8)
-
-# İlk kurulum için tam paket
-$zip = Join-Path $dist "SistemCheckup-$etiket.zip"
-Compress-Archive -Path (Join-Path $dist 'SistemCheckup.exe'), (Join-Path $dist 'Guncelleyici.exe'), (Join-Path $dist 'app') -DestinationPath $zip -Force
+# Zip: içinde tek bir "SistemCheckup" klasörü olur, çıkarınca dağılmaz
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$zipAd = "SistemCheckup-$etiket.zip"
+$zip = Join-Path $dist $zipAd
+[IO.Compression.ZipFile]::CreateFromDirectory($paket, $zip, [IO.Compression.CompressionLevel]::Optimal, $true)
+$manifest.paket = [ordered]@{ ad = $zipAd; sha256 = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower(); boyut = (Get-Item $zip).Length }
+[IO.File]::WriteAllText((Join-Path $kok 'manifest.json'), ($manifest | ConvertTo-Json -Depth 6), $utf8)
+Copy-Item (Join-Path $kok 'BENIOKU.txt') $dist
 Write-Host "Paket: $zip" -ForegroundColor Green
 
-if ($Taslak) { Write-Host 'Taslak mod: hiçbir şey gönderilmedi.' -ForegroundColor Yellow; return }
+if ($Taslak) { Write-Host 'Taslak mod: hiçbir şey gönderilmedi (manifest.json yerelde güncellendi).' -ForegroundColor Yellow; return }
 
-# Değişiklik günlüğü
-$gunluk = Join-Path $kok 'DEGISIKLIKLER.md'
-$eski = if (Test-Path $gunluk) { [IO.File]::ReadAllText($gunluk, [Text.Encoding]::UTF8) -replace '^# Değişiklikler\s*', '' } else { '' }
-$giris = "## $Surum — $($manifest.tarih)`n`n$(if ($Notlar) { $Notlar } else { '-' })`n`n"
-[IO.File]::WriteAllText($gunluk, "# Değişiklikler`n`n$giris$eski", $utf8)
+[IO.File]::WriteAllText($gecmisYol, (ConvertTo-Json -InputObject @($gecmis) -Depth 4), $utf8)
+$md = "# Değişiklikler`n`n" + (($gecmis | ForEach-Object { "## $($_.surum) — $($_.tarih)`n`n" + ((@($_.notlar) | ForEach-Object { "- $_" }) -join "`n") }) -join "`n`n") + "`n"
+[IO.File]::WriteAllText((Join-Path $kok 'DEGISIKLIKLER.md'), $md, $utf8)
 
 git add -A
-git commit -m "Sürüm $Surum" -m $(if ($Notlar) { $Notlar } else { 'Yeni sürüm' }) | Out-Null
+git commit -q -m "Sürüm $Surum" -m (($Notlar | ForEach-Object { "- $_" }) -join "`n")
 git tag -a $etiket -m "Sistem Checkup $Surum"
 $dal = git rev-parse --abbrev-ref HEAD
-git push origin $dal
-git push origin $etiket
+git push -q origin $dal
+git push -q origin $etiket
 
-$varliklar = @($zip, (Join-Path $dist 'manifest.json')) + @($dosyalar | ForEach-Object { Join-Path $dist $_.yol })
-$notMetni = "$(if ($Notlar) { $Notlar } else { 'Yeni sürüm.' })`n`n**İlk kurulum:** ``SistemCheckup-$etiket.zip`` dosyasını indirip bir klasöre çıkarın ve ``SistemCheckup.exe``'yi çalıştırın.`n**Güncelleme:** ``Guncelleyici.exe``'yi açın, değişen dosyalar otomatik indirilir."
-gh release create $etiket @varliklar --repo $ayar.repo --title "Sistem Checkup $Surum" --notes $notMetni --latest
+$notMetni = "## Bu sürümde neler var`n`n" + (($Notlar | ForEach-Object { "- $_" }) -join "`n") + @"
+
+
+## Nasıl kurulur?
+
+1. Aşağıdan **$zipAd** dosyasını indirin.
+2. Zip'e sağ tıklayıp **Tümünü ayıkla** deyin.
+3. Çıkan klasördeki **SistemCheckup.exe**'yi açın.
+
+Zaten kuruluysa indirmenize gerek yok: Sistem Checkup yeni sürümü kendisi bildirir, **Şimdi güncelle**'ye basmanız yeterli.
+
+Ayrıntılar için **BENIOKU.txt** dosyasına bakın.
+"@
+gh release create $etiket $zip (Join-Path $dist 'BENIOKU.txt') --repo $ayar.repo --title "Sistem Checkup $Surum" --notes $notMetni --latest
 if ($LASTEXITCODE -ne 0) { throw 'GitHub Release oluşturulamadı.' }
 Write-Host "Yayınlandı: https://github.com/$($ayar.repo)/releases/tag/$etiket" -ForegroundColor Green

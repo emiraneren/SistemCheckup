@@ -1,16 +1,19 @@
 ﻿#requires -Version 5.1
 <#
-  Sistem Checkup
+  Sistem Checkup — tarama motoru
   Donanım sağlığını kontrol eder, CPU / GPU / RAM / disk teknik detaylarını ve hız testlerini
-  toplar, sürücülerin güncel olup olmadığına bakar ve sonuçları HTML rapor olarak açar.
+  toplar, sürücülerin güncel olup olmadığına bakar ve sonuçları HTML rapor olarak kaydeder.
+  Normalde SistemCheckup.exe tarafından çalıştırılır; tek başına da çalışabilir.
 
   Parametreler:
-    -YonetimsizCalis  Yönetici izni istemeden sınırlı modda çalışır
-    -TestAtla         Hız testlerini (disk / CPU / RAM) atlar
-    -Sessiz           Bitince raporu açmaz ve Enter beklemez
-    -RaporDizini      Raporların kaydedileceği klasör (varsayılan: betiğin yanındaki Raporlar)
+    -YonetimsizCalis   Yönetici izni istemeden çalışır
+    -TestAtla          Hız testlerini (disk / CPU / RAM) atlar (hızlı tarama)
+    -Sessiz            Bitince raporu açmaz ve Enter beklemez
+    -RaporDizini       Raporların kaydedileceği klasör (varsayılan: betiğin yanındaki Raporlar)
+    -IlerlemeDosyasi   İlerlemenin satır satır yazılacağı dosya (arayüz bunu okur)
+    -IptalDosyasi      Bu dosya oluşursa tarama ilk uygun noktada durur
 #>
-param([switch]$YonetimsizCalis, [switch]$TestAtla, [switch]$Sessiz, [string]$RaporDizini)
+param([switch]$YonetimsizCalis, [switch]$TestAtla, [switch]$Sessiz, [string]$RaporDizini, [string]$IlerlemeDosyasi, [string]$IptalDosyasi)
 
 $ErrorActionPreference = 'SilentlyContinue'
 $ProgressPreference = 'SilentlyContinue'
@@ -19,6 +22,16 @@ $KokDizin = $PSScriptRoot
 $Baslangic = Get-Date
 $UygulamaSurum = 'geliştirme'
 try { $UygulamaSurum = (Get-Content -Raw -Encoding UTF8 (Join-Path $KokDizin 'surum.json') -ErrorAction Stop | ConvertFrom-Json).surum } catch {}
+$Utf8 = New-Object Text.UTF8Encoding($false)
+
+function Ilerleme($satir) {
+    if ($IlerlemeDosyasi) { try { [IO.File]::AppendAllText($IlerlemeDosyasi, ($satir -replace "[\r\n]+", ' ') + "`n", $Utf8) } catch {} }
+}
+trap {
+    Ilerleme "HATA|$($_.Exception.Message)"
+    Write-Host "Beklenmeyen hata: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
 
 function Test-Yonetici {
     ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -41,17 +54,34 @@ $Admin = Test-Yonetici
 
 # ------------------------------------------------------------------ yardımcılar
 $script:AdimNo = 0
-$ToplamAdim = 11
+$ToplamAdim = 12
+function Iptal {
+    if ($IptalDosyasi -and (Test-Path $IptalDosyasi)) {
+        Ilerleme 'IPTAL'
+        Write-Host 'Tarama iptal edildi.' -ForegroundColor Yellow
+        exit 2
+    }
+}
 function Adim($metin) {
+    Iptal
     $script:AdimNo++
     Write-Host ("[{0,2}/{1}] {2}" -f $script:AdimNo, $ToplamAdim, $metin) -ForegroundColor Cyan
+    Ilerleme "ADIM|$($script:AdimNo)|$ToplamAdim|$metin"
 }
-function Bilgi($metin) { Write-Host "        $metin" -ForegroundColor DarkGray }
+function Bilgi($metin) {
+    Write-Host "        $metin" -ForegroundColor DarkGray
+    Ilerleme "BILGI|$metin"
+}
 
+# Bulgu türü: 'donanim' = parçaların fiziksel durumu, 'bakim' = sürücü, güncelleme, ayar, disk alanı.
+$BakimKategorileri = 'Sürücüler', 'Windows', 'Güvenlik', 'Sistem', 'Ağ', 'Anakart'
 $Bulgular = New-Object System.Collections.ArrayList
 function Bulgu {
-    param($Seviye, $Kategori, $Baslik, $Detay, $Link = $null, $LinkMetin = $null)
-    [void]$Bulgular.Add([ordered]@{ seviye = $Seviye; kategori = $Kategori; baslik = $Baslik; detay = $Detay; link = $Link; linkMetin = $LinkMetin })
+    param($Seviye, $Kategori, $Baslik, $Detay, $Link = $null, $LinkMetin = $null, $Tur = $null)
+    if (-not $Tur) { $Tur = if ($BakimKategorileri -contains $Kategori) { 'bakim' } else { 'donanim' } }
+    # Karşılaştırma için sayılardan arındırılmış sabit anahtar
+    $kod = "$Kategori|" + ($Baslik -replace '[\d\.,%]+', '#')
+    [void]$Bulgular.Add([ordered]@{ seviye = $Seviye; tur = $Tur; kategori = $Kategori; baslik = $Baslik; detay = $Detay; link = $Link; linkMetin = $LinkMetin; kod = $kod })
 }
 
 function Tarih($d) { if ($d) { try { return ([datetime]$d).ToString('yyyy-MM-dd') } catch {} } return $null }
@@ -69,8 +99,9 @@ $NVIDIA_LINK = 'https://www.nvidia.com/tr-tr/drivers/'
 
 Write-Host ""
 Write-Host "  ███ SİSTEM CHECKUP ███" -ForegroundColor Green
-Write-Host ("  Mod: " + $(if ($Admin) { 'Yönetici (tam veri)' } else { 'Standart kullanıcı (sınırlı veri)' })) -ForegroundColor Gray
+Write-Host ("  Mod: " + $(if ($Admin) { 'Yönetici (tam veri)' } else { 'Standart kullanıcı (sınırlı veri)' }) + $(if ($TestAtla) { ' · hızlı tarama' } else { ' · tam tarama' })) -ForegroundColor Gray
 Write-Host ""
+Ilerleme "BASLADI|$([int]$Admin)|$([int](-not $TestAtla))"
 
 # ------------------------------------------------------------------ 1. sistem
 Adim "Sistem ve anakart bilgileri"
@@ -90,6 +121,9 @@ function DestekLinki {
     if ($sistemUretici -match 'Dell') { return 'https://www.dell.com/support/home/' }
     if ($sistemUretici -match 'HP|Hewlett') { return 'https://support.hp.com/drivers' }
     if ($sistemUretici -match 'Lenovo') { return 'https://pcsupport.lenovo.com/' }
+    if ($sistemUretici -match 'Acer') { return 'https://www.acer.com/support' }
+    if ($sistemUretici -match 'Monster') { return 'https://www.monsternotebook.com.tr/destek/' }
+    if ($sistemUretici -match 'Casper') { return 'https://www.casper.com.tr/destek' }
     if ($anakartUretici -match 'ASUS') { return "https://www.asus.com/supportonly/$q/helpdesk_download/" }
     if ($anakartUretici -match 'Micro-Star|MSI') { return "https://www.msi.com/search/$q" }
     if ($anakartUretici -match 'Gigabyte') { return "https://www.gigabyte.com/Search?kw=$q" }
@@ -102,51 +136,97 @@ $biosYas = YasGun $bios.ReleaseDate
 $sonGuncelleme = Get-HotFix | Where-Object { $_.InstalledOn } | Sort-Object InstalledOn -Descending | Select-Object -First 1
 
 $sistem = [ordered]@{
-    bilgisayar      = $env:COMPUTERNAME
-    isletimSistemi  = "$($os.Caption)".Trim()
-    surum           = "$($cv.DisplayVersion)"
-    derleme         = "$($os.BuildNumber).$($cv.UBR)"
-    calismaSuresi   = ("{0} gün {1} saat {2} dk" -f $uptime.Days, $uptime.Hours, $uptime.Minutes)
-    calismaGun      = [math]::Round($uptime.TotalDays, 1)
-    sistemUretici   = "$($cs.Manufacturer)".Trim()
-    sistemModel     = "$($cs.Model)".Trim()
-    anakartUretici  = $anakartUretici
-    anakartModel    = $anakartModel
-    biosSurum       = "$($bios.SMBIOSBIOSVersion)"
-    biosTarih       = Tarih $bios.ReleaseDate
-    biosYasGun      = $biosYas
-    destekLinki     = $DESTEK
+    bilgisayar       = $env:COMPUTERNAME
+    isletimSistemi   = "$($os.Caption)".Trim()
+    surum            = "$($cv.DisplayVersion)"
+    derleme          = "$($os.BuildNumber).$($cv.UBR)"
+    calismaSuresi    = ("{0} gün {1} saat {2} dk" -f $uptime.Days, $uptime.Hours, $uptime.Minutes)
+    calismaGun       = [math]::Round($uptime.TotalDays, 1)
+    sistemUretici    = "$($cs.Manufacturer)".Trim()
+    sistemModel      = "$($cs.Model)".Trim()
+    anakartUretici   = $anakartUretici
+    anakartModel     = $anakartModel
+    biosSurum        = "$($bios.SMBIOSBIOSVersion)"
+    biosTarih        = Tarih $bios.ReleaseDate
+    biosYasGun       = $biosYas
+    destekLinki      = $DESTEK
     sonWinGuncelleme = if ($sonGuncelleme) { Tarih $sonGuncelleme.InstalledOn } else { $null }
+    dizustu          = $false
 }
 
 if ($biosYas -gt 730) {
-    Bulgu 'warn' 'Anakart' "BIOS sürümü eski ($([int]($biosYas/365)) yıl)" "Kurulu BIOS $($bios.SMBIOSBIOSVersion), tarih $($sistem.biosTarih). Yeni BIOS sürümleri kararlılık, güvenlik ve RAM uyumluluğu düzeltmeleri içerebilir. Güncellemeden önce sürüm notlarını okuyun." $DESTEK 'Anakart destek sayfası'
+    Bulgu 'info' 'Anakart' "BIOS sürümü $([int]($biosYas/365)) yıllık" "Kurulu BIOS $($bios.SMBIOSBIOSVersion) ($($sistem.biosTarih)). Bilgisayarınız sorunsuz çalışıyorsa BIOS güncellemek şart değildir. Kararsızlık veya uyumluluk sorunu yaşıyorsanız üreticinin sayfasındaki yeni sürüme bakabilirsiniz; güncelleme sırasında elektrik kesilmemelidir." $DESTEK 'Destek sayfası'
 } else {
     Bulgu 'ok' 'Anakart' "BIOS güncel görünüyor" "$anakartUretici $anakartModel, BIOS $($bios.SMBIOSBIOSVersion) ($($sistem.biosTarih))." $DESTEK 'Destek sayfası'
 }
 if ($uptime.TotalDays -gt 14) {
-    Bulgu 'info' 'Sistem' "Bilgisayar $([int]$uptime.TotalDays) gündür yeniden başlatılmadı" "Uzun süre açık kalmak bekleyen güncellemelerin uygulanmasını geciktirir. Ara sıra yeniden başlatmak iyi olur."
+    Bulgu 'info' 'Sistem' "Bilgisayar $([int]$uptime.TotalDays) gündür yeniden başlatılmadı" "Bu bir arıza değildir. Ancak bazı Windows ve sürücü güncellemeleri ancak yeniden başlatınca uygulanır; ara sıra yeniden başlatmanız önerilir."
 }
 if ($sonGuncelleme) {
     $wuYas = YasGun $sonGuncelleme.InstalledOn
     if ($wuYas -gt 60) {
-        Bulgu 'warn' 'Windows' "Windows $wuYas gündür güncellenmemiş" "Son yüklenen güncelleme: $($sonGuncelleme.HotFixID) ($($sistem.sonWinGuncelleme))." 'ms-settings:windowsupdate' "Windows Update'i aç"
+        Bulgu 'warn' 'Windows' "Windows $wuYas gündür güncellenmemiş" "Son yüklenen güncelleme: $($sonGuncelleme.HotFixID) ($($sistem.sonWinGuncelleme)). Güvenlik güncellemeleri için Windows Update'i çalıştırmanız önerilir." 'ms-settings:windowsupdate' "Windows Update'i aç"
     }
 }
 
-# Defender
 $mp = Get-MpComputerStatus
 if ($mp) {
     $imzaYas = YasGun $mp.AntivirusSignatureLastUpdated
     $sistem.antivirus = [ordered]@{ acik = [bool]$mp.AntivirusEnabled; gercekZamanli = [bool]$mp.RealTimeProtectionEnabled; imzaTarihi = Tarih $mp.AntivirusSignatureLastUpdated }
     if (-not $mp.RealTimeProtectionEnabled) {
-        Bulgu 'warn' 'Güvenlik' 'Windows Defender gerçek zamanlı koruma kapalı' 'Başka bir antivirüs kullanmıyorsanız korumayı açın.' 'windowsdefender:' 'Windows Güvenliği'
+        Bulgu 'warn' 'Güvenlik' 'Windows Defender gerçek zamanlı koruma kapalı' 'Başka bir antivirüs programı kullanıyorsanız bu normaldir. Kullanmıyorsanız korumayı açmanız önerilir.' 'windowsdefender:' 'Windows Güvenliği'
     } elseif ($imzaYas -gt 7) {
-        Bulgu 'warn' 'Güvenlik' "Antivirüs tanımları $imzaYas gündür güncellenmemiş" '' 'windowsdefender:' 'Windows Güvenliği'
+        Bulgu 'warn' 'Güvenlik' "Antivirüs tanımları $imzaYas gündür güncellenmemiş" 'Windows Update çalıştırıldığında tanımlar kendiliğinden güncellenir.' 'windowsdefender:' 'Windows Güvenliği'
     }
 }
 
-# ------------------------------------------------------------------ 2. işlemci
+# ------------------------------------------------------------------ 2. pil (dizüstü)
+Adim "Pil ve güç durumu"
+$kasa = @((Get-CimInstance Win32_SystemEnclosure).ChassisTypes)
+$piller = @(Get-CimInstance Win32_Battery)
+$sistem.dizustu = ($piller.Count -gt 0) -or [bool]($kasa | Where-Object { $_ -in 8, 9, 10, 11, 12, 14, 18, 21, 30, 31, 32 })
+$pil = $null
+if ($piller.Count) {
+    $xmlYol = Join-Path $env:TEMP ("sc_pil_{0}.xml" -f $PID)
+    & powercfg.exe /batteryreport /xml /output "$xmlYol" 2>$null | Out-Null
+    $kayitlar = @()
+    try {
+        [xml]$rapor = [IO.File]::ReadAllText($xmlYol)
+        foreach ($b in @($rapor.BatteryReport.Batteries.Battery)) {
+            $tasarim = [double]$b.DesignCapacity; $dolu = [double]$b.FullChargeCapacity
+            $kayitlar += [ordered]@{
+                ad = ("$($b.Manufacturer) $($b.Id)").Trim(); kimya = "$($b.Chemistry)"
+                tasarimMWh = [int]$tasarim; doluMWh = [int]$dolu
+                saglikYuzde = if ($tasarim -gt 0) { [math]::Round([math]::Min(100, 100 * $dolu / $tasarim), 0) } else { $null }
+                dongu = if ("$($b.CycleCount)" -match '^\d+$' -and [int]$b.CycleCount -gt 0) { [int]$b.CycleCount } else { $null }
+            }
+        }
+    } catch {}
+    Remove-Item $xmlYol -Force -ErrorAction SilentlyContinue
+    $p0 = $piller[0]
+    $sarjda = $p0.BatteryStatus -in 2, 6, 7, 8, 9
+    $pil = [ordered]@{ sarjYuzde = [int]$p0.EstimatedChargeRemaining; prizde = $sarjda; piller = $kayitlar }
+    foreach ($k in $kayitlar) {
+        if ($null -eq $k.saglikYuzde) { continue }
+        $dongu = if ($k.dongu) { ", $($k.dongu) şarj döngüsü" } else { '' }
+        $ozet = "Pil şu an en fazla $([int]($k.doluMWh/1000)) Wh tutabiliyor; yeniyken $([int]($k.tasarimMWh/1000)) Wh tutuyordu (kapasitenin %$($k.saglikYuzde)'i kaldı$dongu)."
+        if ($k.saglikYuzde -lt 60) {
+            Bulgu 'bad' 'Pil' "Pil ciddi şekilde yıpranmış (%$($k.saglikYuzde) kapasite)" "$ozet Pil süresi belirgin şekilde kısalmıştır; pil değişimi düşünülebilir. Bu, bilgisayarın geri kalanının bozuk olduğu anlamına gelmez."
+        } elseif ($k.saglikYuzde -lt 80) {
+            Bulgu 'warn' 'Pil' "Pil yıpranmaya başlamış (%$($k.saglikYuzde) kapasite)" "$ozet Lityum piller kullanıldıkça kapasite kaybeder; bu normaldir. %60'ın altına inerse değişim düşünülebilir."
+        } else {
+            Bulgu 'ok' 'Pil' "Pil sağlıklı (%$($k.saglikYuzde) kapasite)" $ozet
+        }
+    }
+    if (-not $sarjda -and -not $TestAtla) {
+        Bulgu 'info' 'Pil' 'Tarama pil ile yapıldı' 'Dizüstü bilgisayarlar pil ile çalışırken güç tasarrufu yapar; hız testleri prize takılıyken daha yüksek çıkar.'
+    }
+    Bilgi ("Pil: şarj %{0}, {1}" -f $pil.sarjYuzde, $(if ($sarjda) { 'prizde' } else { 'pilde' }))
+} else {
+    Bilgi $(if ($sistem.dizustu) { 'Pil bulunamadı' } else { 'Masaüstü bilgisayar, pil yok' })
+}
+
+# ------------------------------------------------------------------ 3. işlemci
 Adim "İşlemci bilgileri"
 $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
 $cpuBilgi = [ordered]@{
@@ -164,10 +244,10 @@ $cpuBilgi = [ordered]@{
     test          = $null
 }
 if ($cpu.Status -and $cpu.Status -ne 'OK') {
-    Bulgu 'bad' 'İşlemci' "İşlemci durumu: $($cpu.Status)" 'Windows işlemcinin normal çalışmadığını bildiriyor.'
+    Bulgu 'bad' 'İşlemci' "Windows işlemcide sorun bildiriyor ($($cpu.Status))" 'Bu nadir görülen bir durumdur. Bilgisayarı yeniden başlatıp tekrar tarayın; devam ederse teknik servise danışın.'
 }
 
-# ------------------------------------------------------------------ 3. ekran kartı
+# ------------------------------------------------------------------ 4. ekran kartı
 Adim "Ekran kartı bilgileri"
 $vramReg = @{}
 Get-ItemProperty 'HKLM:\SYSTEM\ControlSet001\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0*' | ForEach-Object {
@@ -210,25 +290,25 @@ foreach ($g in @(Get-CimInstance Win32_VideoController)) {
     if ($sanal) { $gpuListe += $gpu; continue }
 
     if ($ad -match 'Microsoft Basic Display|Temel Görüntü') {
-        Bulgu 'bad' 'Ekran Kartı' 'Ekran kartı sürücüsü yüklü değil' "Windows temel görüntü sürücüsünü kullanıyor ($ad). Oyun/hızlandırma çalışmaz." $NVIDIA_LINK 'Sürücü indir'
+        Bulgu 'bad' 'Ekran Kartı' 'Ekran kartı sürücüsü yüklü değil' "Windows geçici bir temel görüntü sürücüsü kullanıyor ($ad). Ekran kartınız bozuk değildir; sürücüsü kurulunca oyunlar ve video hızlandırma çalışır." $NVIDIA_LINK 'Sürücü indir' 'bakim'
     } elseif ($g.Status -ne 'OK') {
-        Bulgu 'bad' 'Ekran Kartı' "$ad durumu: $($g.Status)" 'Aygıt Yöneticisi ekran kartında sorun bildiriyor.'
+        Bulgu 'bad' 'Ekran Kartı' "Windows ekran kartında sorun bildiriyor ($($g.Status))" 'Önce sürücüyü yeniden kurmayı deneyin; sorun devam ederse kartın bağlantısı veya kendisi kontrol edilmelidir.'
     }
     if ($gpu.canli) {
         $c = $gpu.canli
-        if ($c.sicaklik -ge 85) { Bulgu 'bad' 'Ekran Kartı' "GPU sıcaklığı yüksek: $($c.sicaklik) °C" 'Rölantide/hafif yükte bu sıcaklık normal değil. Fanları, toz birikimini ve kasa hava akışını kontrol edin.' }
-        elseif ($c.sicaklik -ge 75 -and $c.kullanim -lt 30) { Bulgu 'warn' 'Ekran Kartı' "GPU düşük yükte sıcak: $($c.sicaklik) °C" "Kullanım %$($c.kullanim) iken sıcaklık beklenenden yüksek. Fan eğrisi veya toz kontrol edilmeli." }
+        if ($c.sicaklik -ge 85) { Bulgu 'bad' 'Ekran Kartı' "Ekran kartı çok sıcak: $($c.sicaklik) °C" 'Hafif yükte bu sıcaklık normal değildir. Fanların döndüğünü, kart üzerinde toz birikmediğini ve kasanın hava aldığını kontrol edin.' }
+        elseif ($c.sicaklik -ge 75 -and $c.kullanim -lt 30) { Bulgu 'warn' 'Ekran Kartı' "Ekran kartı düşük yükte sıcak: $($c.sicaklik) °C" "Kullanım yalnızca %$($c.kullanim) iken sıcaklık beklenenden yüksek. Toz birikimi veya fan ayarı kontrol edilebilir." }
         else { Bulgu 'ok' 'Ekran Kartı' "$ad sağlıklı çalışıyor" "Sıcaklık $($c.sicaklik) °C, kullanım %$($c.kullanim), güç $($c.guc) W / $($c.gucLimit) W." }
         if ($c.pcieGenislikMax -and $c.pcieGenislik -lt $c.pcieGenislikMax) {
-            Bulgu 'warn' 'Ekran Kartı' "Ekran kartı x$($c.pcieGenislik) hızında bağlı (destekleyen: x$($c.pcieGenislikMax))" 'Kart yuvaya tam oturmamış, yanlış yuvada ya da yuva paylaşımlı olabilir. Performans düşebilir.'
+            Bulgu 'warn' 'Ekran Kartı' "Ekran kartı x$($c.pcieGenislik) hızında bağlı (destekleyen: x$($c.pcieGenislikMax))" 'Kart yuvaya tam oturmamış, yanlış yuvaya takılmış ya da yuva başka bir aygıtla paylaşılıyor olabilir. Kart çalışır ama tam performans vermeyebilir.'
         }
     } elseif ($g.Status -eq 'OK') {
-        Bulgu 'ok' 'Ekran Kartı' "$ad çalışıyor" 'Windows aygıtın normal çalıştığını bildiriyor (canlı sıcaklık verisi yalnızca NVIDIA kartlarda okunabiliyor).'
+        Bulgu 'ok' 'Ekran Kartı' "$ad çalışıyor" 'Windows aygıtın normal çalıştığını bildiriyor. (Canlı sıcaklık şu an yalnızca NVIDIA kartlarda okunabiliyor.)'
     }
     $gpuListe += $gpu
 }
 
-# ------------------------------------------------------------------ 4. bellek
+# ------------------------------------------------------------------ 5. bellek
 Adim "Bellek (RAM) bilgileri"
 $moduller = @(Get-CimInstance Win32_PhysicalMemory)
 $dizi = Get-CimInstance Win32_PhysicalMemoryArray | Select-Object -First 1
@@ -250,18 +330,17 @@ foreach ($m in $moduller) {
     if ($loc -match 'Channel\s*([A-H])') { $anahtar = "$anahtar-$($matches[1])" }
     elseif ($loc -match 'DIMM_?([A-H])\d') { $anahtar = "$anahtar-$($matches[1])" }
     if ($anahtar) { $kanallar[$anahtar] = $true }
-    $nominal = NominalHiz $m.PartNumber
     $modListe += [ordered]@{
         yuva = "$($m.DeviceLocator)"; uretici = "$($m.Manufacturer)".Trim(); parcaNo = "$($m.PartNumber)".Trim()
         kapasiteGB = GB $m.Capacity 0; tip = $tipAdi[[int]$m.SMBIOSMemoryType]
-        hizMHz = [int]$m.Speed; ayarliMHz = [int]$m.ConfiguredClockSpeed; nominalMHz = $nominal
-        voltaj = if ($m.ConfiguredVoltage) { $m.ConfiguredVoltage / 1000.0 } else { $null }
+        hizMHz = [int]$m.Speed; ayarliMHz = [int]$m.ConfiguredClockSpeed; nominalMHz = NominalHiz $m.PartNumber
     }
 }
 $toplamRam = ($moduller | Measure-Object Capacity -Sum).Sum
 $kullanilanKB = $os.TotalVisibleMemorySize - $os.FreePhysicalMemory
 $kullanimYuzde = [math]::Round(100.0 * $kullanilanKB / $os.TotalVisibleMemorySize, 0)
-$kanalDurum = if ($moduller.Count -le 1) { 'Tek kanal' } elseif ($kanallar.Count -ge 2) { 'Çift kanal' } elseif ($kanallar.Count -eq 1) { 'Tek kanal' } else { 'Belirlenemedi' }
+$lehimli = $sistem.dizustu -and ($modListe | Where-Object { $_.tip -match '^LP' })
+$kanalDurum = if ($lehimli) { 'Anakarta lehimli' } elseif ($moduller.Count -le 1) { 'Tek kanal' } elseif ($kanallar.Count -ge 2) { 'Çift kanal' } elseif ($kanallar.Count -eq 1) { 'Tek kanal' } else { 'Belirlenemedi' }
 
 $ram = [ordered]@{
     toplamGB = GB $toplamRam 0; kullanilanGB = Yuvarla ($kullanilanKB / 1MB) 1; kullanimYuzde = $kullanimYuzde
@@ -273,27 +352,27 @@ $ilk = $modListe | Select-Object -First 1
 if ($ilk) {
     $ayarli = $ilk.ayarliMHz
     $hedef = @($ilk.nominalMHz, $ilk.hizMHz) | Where-Object { $_ } | Measure-Object -Maximum | Select-Object -ExpandProperty Maximum
-    if ($hedef -and $ayarli -and $hedef -gt ($ayarli + 100)) {
-        Bulgu 'warn' 'Bellek' "RAM $ayarli MHz'de çalışıyor, desteklediği hız $hedef MHz" "BIOS'ta XMP / EXPO / DOCP profili kapalı görünüyor. Açarsanız bellek performansı artar." $DESTEK 'Anakart kılavuzu'
+    if (-not $sistem.dizustu -and $hedef -and $ayarli -and $hedef -gt ($ayarli + 100)) {
+        Bulgu 'warn' 'Bellek' "RAM $ayarli MHz'de çalışıyor, desteklediği hız $hedef MHz" "Bu bir arıza değil, bir ayardır. BIOS'ta XMP / EXPO / DOCP profili açılırsa bellek kutusunda yazan hızda çalışır ve performans artar. Ayarı açtıktan sonra sistem kararsızlaşırsa tekrar kapatabilirsiniz." $DESTEK 'Anakart kılavuzu' 'bakim'
     } else {
-        Bulgu 'ok' 'Bellek' "RAM nominal hızında çalışıyor ($ayarli MHz)" "$($ram.toplamGB) GB $($ilk.tip), $($moduller.Count) modül, $kanalDurum."
+        Bulgu 'ok' 'Bellek' "RAM sorunsuz çalışıyor ($ayarli MHz)" "$($ram.toplamGB) GB $($ilk.tip), $($moduller.Count) modül, $kanalDurum."
     }
 }
-if ($kanalDurum -eq 'Tek kanal' -and $moduller.Count -ge 1) {
-    Bulgu 'warn' 'Bellek' 'RAM tek kanal çalışıyor' 'Tek modül ya da yanlış yuvalar kullanılıyor. İki modülü anakart kılavuzundaki önerilen yuvalara (genelde A2 + B2) takmak bant genişliğini neredeyse ikiye katlar.'
+if ($kanalDurum -eq 'Tek kanal' -and $moduller.Count -ge 1 -and -not $sistem.dizustu) {
+    Bulgu 'warn' 'Bellek' 'RAM tek kanal çalışıyor' 'Bu bir arıza değildir. Tek modül takılı ya da modüller yanlış yuvalarda. İki modülü anakart kılavuzunda önerilen yuvalara (genelde A2 + B2) takmak bellek hızını belirgin şekilde artırır.' $null $null 'bakim'
 }
 if ($kullanimYuzde -ge 90) {
-    Bulgu 'warn' 'Bellek' "Bellek kullanımı çok yüksek (%$kullanimYuzde)" 'Arka planda çok fazla uygulama açık olabilir. Görev Yöneticisi ile kontrol edin.'
+    Bulgu 'warn' 'Bellek' "Bellek kullanımı çok yüksek (%$kullanimYuzde)" 'Şu an açık olan programlar belleğin neredeyse tamamını kullanıyor; bu yavaşlamaya yol açar. Görev Yöneticisi''nden en çok bellek kullanan programlara bakabilirsiniz.' $null $null 'bakim'
 }
 
 $md = Olaylar @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-MemoryDiagnostics-Results' } | Select-Object -First 1
 if ($md) {
     $hata = ($md.Id -eq 1202)
     $ram.tanilama = [ordered]@{ tarih = Tarih $md.TimeCreated; hataVar = $hata }
-    if ($hata) { Bulgu 'bad' 'Bellek' 'Windows Bellek Tanılama hata buldu' "Son test ($($ram.tanilama.tarih)) bellek hatası raporladı. Modülleri tek tek test edin (MemTest86)." 'https://www.memtest86.com/' 'MemTest86' }
+    if ($hata) { Bulgu 'bad' 'Bellek' 'Windows Bellek Tanılama hata buldu' "Son test ($($ram.tanilama.tarih)) bellek hatası raporladı. Hangi modülün sorunlu olduğunu bulmak için modülleri tek tek MemTest86 ile test edin." 'https://www.memtest86.com/' 'MemTest86' }
 }
 
-# ------------------------------------------------------------------ 5. depolama
+# ------------------------------------------------------------------ 6. depolama
 Adim "Disk sağlığı ve bölümler"
 $fizikselDiskler = @(Get-PhysicalDisk | Sort-Object { [int]$_.DeviceId })
 $diskDrive = @(Get-CimInstance Win32_DiskDrive)
@@ -316,7 +395,7 @@ foreach ($pd in $fizikselDiskler) {
     $disk = [ordered]@{
         no = [int]$pd.DeviceId; ad = "$($pd.FriendlyName)".Trim(); tip = $tip; arayuz = "$($pd.BusType)"
         boyutGB = GB $pd.Size 0; saglik = "$($pd.HealthStatus)"; durum = "$($pd.OperationalStatus)"
-        firmware = "$($pd.FirmwareVersion)"; seriNo = $null
+        firmware = "$($pd.FirmwareVersion)"
         sicaklik = if ($rel -and $rel.Temperature) { [int]$rel.Temperature } else { $null }
         maksSicaklik = if ($rel -and $rel.TemperatureMax) { [int]$rel.TemperatureMax } else { $null }
         asinma = if ($rel -and $null -ne $rel.Wear) { [int]$rel.Wear } else { $null }
@@ -329,54 +408,54 @@ foreach ($pd in $fizikselDiskler) {
 
     $etiket = "$($disk.ad) ($($disk.arayuz))"
     if ($disk.saglik -ne 'Healthy') {
-        Bulgu 'bad' 'Depolama' "$etiket sağlık durumu: $($disk.saglik)" 'Disk arıza belirtisi gösteriyor. Önemli verilerinizi hemen yedekleyin.'
+        Bulgu 'bad' 'Depolama' "$etiket arıza belirtisi gösteriyor ($($disk.saglik))" 'Diskin kendi sağlık kontrolü sorun bildiriyor. Önemli dosyalarınızı hemen başka bir yere yedekleyin ve diski değiştirmeyi planlayın.'
     } else {
         $ek = @()
-        if ($null -ne $disk.asinma) { $ek += "ömür kullanımı %$($disk.asinma)" }
+        if ($null -ne $disk.asinma) { $ek += "ömrünün %$($disk.asinma)'i kullanılmış" }
         if ($disk.sicaklik) { $ek += "$($disk.sicaklik) °C" }
-        if ($disk.calismaSaati) { $ek += "$($disk.calismaSaati) saat çalışma" }
+        if ($disk.calismaSaati) { $ek += "$($disk.calismaSaati) saat çalışmış" }
         $ekMetin = if ($ek.Count) { ' — ' + ($ek -join ', ') } else { '' }
-        Bulgu 'ok' 'Depolama' "$etiket sağlıklı" "Windows sağlık durumu: Sağlıklı$ekMetin."
+        Bulgu 'ok' 'Depolama' "$etiket sağlıklı" "Diskin kendi sağlık kontrolü sorun bildirmiyor$ekMetin."
     }
     if ($null -ne $disk.asinma) {
-        if ($disk.asinma -ge 90) { Bulgu 'bad' 'Depolama' "$($disk.ad) ömrünün sonuna yaklaştı (%$($disk.asinma))" 'Yazma ömrü neredeyse tükenmiş. Değiştirmeyi planlayın ve yedek alın.' }
-        elseif ($disk.asinma -ge 70) { Bulgu 'warn' 'Depolama' "$($disk.ad) ömrünün %$($disk.asinma)'ini kullanmış" 'Disk sağlıklı ama yıpranma ilerlemiş, düzenli yedek alın.' }
+        if ($disk.asinma -ge 90) { Bulgu 'bad' 'Depolama' "$($disk.ad) ömrünün sonuna yaklaştı (%$($disk.asinma))" 'SSD''nin yazma ömrü neredeyse tükenmiş. Şu an çalışıyor olsa da yakında değiştirmeyi planlayın ve düzenli yedek alın.' }
+        elseif ($disk.asinma -ge 70) { Bulgu 'warn' 'Depolama' "$($disk.ad) ömrünün %$($disk.asinma)'ini kullanmış" 'Disk sağlıklı çalışıyor ama yıpranma ilerlemiş. Düzenli yedek almanız yeterli.' }
     }
-    if ($disk.sicaklik -ge 70) { Bulgu 'warn' 'Depolama' "$($disk.ad) sıcak: $($disk.sicaklik) °C" 'NVMe soğutucusu takılı mı kontrol edin; yüksek sıcaklık hız düşüşüne (throttling) yol açar.' }
-    if ($disk.okumaHatasi -gt 0 -or $disk.yazmaHatasi -gt 0) { Bulgu 'bad' 'Depolama' "$($disk.ad) düzeltilemeyen hata bildirdi" "Okuma hatası: $($disk.okumaHatasi), yazma hatası: $($disk.yazmaHatasi). Yedek alın." }
+    if ($disk.sicaklik -ge 70) { Bulgu 'warn' 'Depolama' "$($disk.ad) sıcak: $($disk.sicaklik) °C" 'Yüksek sıcaklık diski bozmaz ama kendini yavaşlatmasına yol açar. NVMe disklerde soğutucu (heatsink) takılı olup olmadığını kontrol edin.' }
+    if ($disk.okumaHatasi -gt 0 -or $disk.yazmaHatasi -gt 0) { Bulgu 'bad' 'Depolama' "$($disk.ad) düzeltilemeyen okuma/yazma hatası bildirdi" "Okuma hatası: $($disk.okumaHatasi), yazma hatası: $($disk.yazmaHatasi). Bu, verilerin bozulabileceği anlamına gelir; önemli dosyalarınızı yedekleyin." }
     foreach ($b in $birimler) {
         if ($null -ne $b.bosYuzde) {
-            if ($b.bosYuzde -lt 10) { Bulgu 'bad' 'Depolama' "$($b.harf) sürücüsünde çok az boş alan (%$($b.bosYuzde))" "Yalnızca $($b.bosGB) GB boş. SSD'ler dolduğunda yavaşlar; Windows güncellemeleri de başarısız olabilir." 'ms-settings:storagesense' 'Depolama ayarları' }
-            elseif ($b.bosYuzde -lt 20) { Bulgu 'warn' 'Depolama' "$($b.harf) sürücüsü dolmak üzere (%$($b.bosYuzde) boş)" "$($b.bosGB) GB boş alan kaldı." 'ms-settings:storagesense' 'Depolama ayarları' }
+            if ($b.bosYuzde -lt 10) { Bulgu 'warn' 'Depolama' "$($b.harf) sürücüsünde çok az boş alan kaldı (%$($b.bosYuzde))" "Yalnızca $($b.bosGB) GB boş. Disk dolduğunda yavaşlar ve Windows güncellemeleri başarısız olabilir. Gereksiz dosyaları silebilir veya Depolama Algısı'nı kullanabilirsiniz." 'ms-settings:storagesense' 'Depolama ayarları' 'bakim' }
+            elseif ($b.bosYuzde -lt 20) { Bulgu 'info' 'Depolama' "$($b.harf) sürücüsü dolmak üzere (%$($b.bosYuzde) boş)" "$($b.bosGB) GB boş alan kaldı. Şimdilik sorun yok; %10'un altına inmeden yer açmanız önerilir." 'ms-settings:storagesense' 'Depolama ayarları' 'bakim' }
         }
     }
 }
 if (-not $Admin) {
-    Bulgu 'info' 'Depolama' 'SSD aşınma ve sıcaklık verisi okunamadı' 'Bu veriler yönetici izni gerektiriyor. Uygulamayı yönetici olarak çalıştırırsanız SSD ömrü, sıcaklık ve çalışma saati de raporlanır.'
+    Bulgu 'info' 'Depolama' 'SSD ömrü ve sıcaklığı ölçülemedi' 'Bu bilgiler yalnızca yönetici izniyle okunabiliyor. Bir sonraki taramada "Yönetici izniyle tara" seçeneğini açarsanız SSD ömrü, sıcaklık ve çalışma saati de gösterilir.'
 }
 
-# ------------------------------------------------------------------ 6. hız testleri
+# ------------------------------------------------------------------ hız testleri
 $benchYuklu = $false
 if (-not $TestAtla) {
     try {
         Add-Type -Path (Join-Path $KokDizin 'SCBench.cs') -ErrorAction Stop
         $benchYuklu = $true
     } catch {
-        Write-Host "        Test modülü yüklenemedi: $_" -ForegroundColor Red
+        Bilgi "Test modülü yüklenemedi: $($_.Exception.Message)"
     }
 }
 
 Adim "Disk hız testleri (okuma / yazma)"
 if ($benchYuklu) {
     foreach ($disk in $diskListe) {
+        Iptal
         if ($disk.arayuz -eq 'USB') { Bilgi "$($disk.ad): USB disk, test atlandı"; continue }
         $hedef = $disk.birimler | Where-Object { $_.bosGB -ge 3 -and $_.dosyaSistemi -eq 'NTFS' } | Select-Object -First 1
         if (-not $hedef) { Bilgi "$($disk.ad): yeterli boş alan yok, test atlandı"; continue }
-        $sysHarf = $env:SystemDrive
-        $klasor = if ($hedef.harf -eq $sysHarf) { Join-Path $env:TEMP 'SistemCheckup_tmp' } else { "$($hedef.harf)\SistemCheckup_tmp" }
+        $klasor = if ($hedef.harf -eq $env:SystemDrive) { Join-Path $env:TEMP 'SistemCheckup_tmp' } else { "$($hedef.harf)\SistemCheckup_tmp" }
         New-Item -ItemType Directory -Force -Path $klasor | Out-Null
         $dosya = Join-Path $klasor 'hiz_testi.tmp'
-        Bilgi "$($disk.ad) → $($hedef.harf) üzerinde test ediliyor..."
+        Bilgi "$($disk.ad) ($($hedef.harf)) test ediliyor..."
         try {
             $boyutMB = 1024
             $sw = [SCBench]::SeqWrite($dosya, $boyutMB, 8192)
@@ -392,11 +471,11 @@ if ($benchYuklu) {
                 r4kOkumaT8 = Yuvarla $r8[0] 1; r4kOkumaT8Iops = Yuvarla $r8[1] 0
                 r4kYazmaQ1 = Yuvarla $w1[0] 1; r4kYazmaQ1Iops = Yuvarla $w1[1] 0
             }
-            Bilgi ("   Sıralı okuma {0:N0} MB/s · yazma {1:N0} MB/s · 4K okuma {2:N1} MB/s" -f $sr, $sw, $r1[0])
+            Bilgi ("   okuma {0:N0} MB/s · yazma {1:N0} MB/s" -f $sr, $sw)
 
             $beklenen = if ($disk.arayuz -eq 'NVMe') { 1000 } elseif ($disk.tip -eq 'SSD') { 350 } else { 80 }
             if ($sr -lt $beklenen) {
-                Bulgu 'warn' 'Depolama' "$($disk.ad) beklenenden yavaş okuyor ($([int]$sr) MB/s)" "Bu tip disk için en az ~$beklenen MB/s beklenir. Disk dolu, aşırı ısınmış, arka planda yoğun kullanımda ya da yanlış porta/yuvaya bağlı olabilir."
+                Bulgu 'warn' 'Depolama' "$($disk.ad) beklenenden yavaş okudu ($([int]$sr) MB/s)" "Bu tip bir diskten en az ~$beklenen MB/s beklenir. Test sırasında arka planda büyük bir indirme/kopyalama varsa sonuç düşük çıkabilir; önce tekrar tarayın. Yine düşükse disk çok dolu, aşırı ısınmış ya da yanlış porta/yuvaya bağlı olabilir."
             }
         } catch {
             Bilgi "   Test başarısız: $($_.Exception.Message)"
@@ -405,14 +484,15 @@ if ($benchYuklu) {
             Remove-Item -Force $klasor -ErrorAction SilentlyContinue
         }
     }
-} else { Bilgi 'atlandı' }
+} else { Bilgi 'Hızlı taramada atlandı' }
 
-Adim "İşlemci ve bellek performans testi (~15 sn)"
+Adim "İşlemci ve bellek performans testi"
 if ($benchYuklu) {
+    Iptal
     Bilgi 'Tek çekirdek testi...'
     $tek = [SCBench]::SingleThread(3000)
     $sure = 10
-    Bilgi "Tüm çekirdekler $sure saniye yük altında (ısı ve frekans izleniyor)..."
+    Bilgi "Tüm çekirdekler $sure saniye tam yükte (fanlar hızlanabilir)..."
     [SCBench]::StartMulti($cpuBilgi.izlek, $sure)
     $frekanslar = @()
     Start-Sleep -Milliseconds 700
@@ -422,9 +502,17 @@ if ($benchYuklu) {
         Start-Sleep -Milliseconds 800
     }
     $ornek = @([SCBench]::CpuSamples | ForEach-Object { [math]::Round($_, 1) })
-    $basta = ($ornek[1..2] | Measure-Object -Average).Average
-    $sonda = ($ornek[($sure - 3)..($sure - 1)] | Measure-Object -Average).Average
-    $cok = ($ornek[1..($sure - 1)] | Measure-Object -Average).Average
+    # Çok çekirdek puanı: arka plandaki programların anlık etkisini azaltmak için ortanca değer
+    $sirali = @($ornek[1..($sure - 1)] | Sort-Object)
+    $cok = $sirali[[int][math]::Floor($sirali.Count / 2)]
+    # Isıl kısıtlama frekans düşüşüyle ölçülür; iş miktarı başka programlar yüzünden de dalgalanabilir
+    if ($frekanslar.Count -ge 4) {
+        $basta = ($frekanslar[0..1] | Measure-Object -Average).Average
+        $sonda = ($frekanslar[($frekanslar.Count - 3)..($frekanslar.Count - 1)] | Measure-Object -Average).Average
+    } else {
+        $basta = ($ornek[1..2] | Measure-Object -Average).Average
+        $sonda = ($ornek[($sure - 3)..($sure - 1)] | Measure-Object -Average).Average
+    }
     $dusus = if ($basta -gt 0) { [math]::Round(100.0 * ($basta - $sonda) / $basta, 1) } else { 0 }
     $dusus = [math]::Max(0, $dusus)
     $atla = if ($frekanslar.Count -gt 2) { 1 } else { 0 }
@@ -435,26 +523,27 @@ if ($benchYuklu) {
         olcekleme = if ($tek -gt 0) { Yuvarla ($cok / $tek) 1 } else { $null }
         dususYuzde = $dusus; yukFrekansMHz = $efektif; frekanslar = $frekanslar; ornekler = $ornek
     }
-    Bilgi ("Tek çekirdek {0:N0} · çok çekirdek {1:N0} puan · yükte ~{2} MHz · düşüş %{3}" -f $tek, $cok, $efektif, $dusus)
+    Bilgi ("Tek çekirdek {0:N0} · çok çekirdek {1:N0} puan · yükte ~{2} MHz" -f $tek, $cok, $efektif)
 
-    if ($dusus -ge 12) {
-        Bulgu 'warn' 'İşlemci' "Yük altında performans %$dusus düştü (ısıl kısıtlama olabilir)" '10 saniyelik tam yükte işlemci hızı belirgin şekilde azaldı. Soğutucunun oturması, termal macun, fan hızları ve kasa hava akışı kontrol edilmeli.'
+    $esik = if ($sistem.dizustu) { 15 } else { 10 }
+    if ($dusus -ge $esik) {
+        Bulgu 'warn' 'İşlemci' "İşlemci tam yükte %$dusus yavaşladı (ısınma olabilir)" "10 saniyelik tam yükte işlemci kendini yavaşlattı; bu genelde soğutmanın yetersiz kaldığını gösterir. Fanların çalıştığını ve toz birikmediğini kontrol edin.$(if ($sistem.dizustu) { ' Dizüstü bilgisayarlarda bir miktar yavaşlama normaldir; bilgisayarı sert ve düz bir yüzeyde kullanın.' } else { ' Soğutucunun oturması ve termal macun da kontrol edilebilir.' })"
     } elseif ($efektif -and $efektif -lt ($cpuBilgi.tabanMHz * 0.9)) {
-        Bulgu 'warn' 'İşlemci' "Yük altında işlemci taban hızının altında çalışıyor (~$efektif MHz)" "Taban hızı $($cpuBilgi.tabanMHz) MHz. Güç planı 'Güç tasarrufu' modunda olabilir ya da soğutma yetersiz." 'ms-settings:powersleep' 'Güç ayarları'
+        Bulgu 'warn' 'İşlemci' "İşlemci yük altında taban hızının altında kaldı (~$efektif MHz)" "Taban hızı $($cpuBilgi.tabanMHz) MHz. En sık sebep güç modunun 'Güç tasarrufu'na ayarlı olmasıdır$(if ($sistem.dizustu) { ' veya bilgisayarın pille çalışmasıdır' }). Bu bir arıza değildir." 'ms-settings:powersleep' 'Güç ayarları' 'bakim'
     } else {
-        Bulgu 'ok' 'İşlemci' 'İşlemci yük altında kararlı' "Tam yükte ~$efektif MHz efektif hız, 10 saniye boyunca performans düşüşü %$dusus (normal)."
+        Bulgu 'ok' 'İşlemci' 'İşlemci tam yükte kararlı' "Tam yükte ~$efektif MHz hızda çalıştı ve 10 saniye boyunca yavaşlamadı (düşüş %$dusus). Soğutma yeterli."
     }
 
-    Bilgi 'Bellek bant genişliği testi...'
+    Bilgi 'Bellek hız testi...'
     try {
         $bant = [SCBench]::MemCopy(256, [math]::Min(8, $cpuBilgi.izlek), 6)
         $ram.bantGBs = Yuvarla $bant 1
         Bilgi ("Bellek kopyalama {0:N1} GB/s" -f $bant)
     } catch { Bilgi "Bellek testi başarısız: $($_.Exception.Message)" }
     [GC]::Collect()
-} else { Bilgi 'atlandı' }
+} else { Bilgi 'Hızlı taramada atlandı' }
 
-# ------------------------------------------------------------------ 7. kararlılık / olay günlükleri
+# ------------------------------------------------------------------ olay günlükleri
 Adim "Son 30 günün hata kayıtları"
 $ay = (Get-Date).AddDays(-30)
 function OlayOzet($liste) {
@@ -462,7 +551,6 @@ function OlayOzet($liste) {
     [ordered]@{ adet = $l.Count; son = if ($l.Count) { $l[0].TimeCreated.ToString('yyyy-MM-dd HH:mm') } else { $null } }
 }
 $kp41 = Olaylar @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-Kernel-Power'; Id = 41; StartTime = $ay }
-$e6008 = Olaylar @{ LogName = 'System'; ProviderName = 'EventLog'; Id = 6008; StartTime = $ay }
 $bsod = Olaylar @{ LogName = 'System'; Id = 1001; ProviderName = 'Microsoft-Windows-WER-SystemErrorReporting'; StartTime = $ay }
 $wheaHata = Olaylar @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-WHEA-Logger'; Level = 1, 2, 3; StartTime = $ay }
 $wheaDuzeltilen = Olaylar @{ LogName = 'System'; ProviderName = 'Microsoft-Windows-WHEA-Logger'; Level = 4; StartTime = $ay }
@@ -485,28 +573,28 @@ $olaylar = [ordered]@{
 
 $kapanma = @($kp41).Count
 if ($bsod.Count -gt 0) {
-    Bulgu 'bad' 'Kararlılık' "Son 30 günde $($bsod.Count) mavi ekran (BSOD)" "Son: $($olaylar.maviEkran.son). Sık BSOD genelde sürücü, RAM (XMP kararsızlığı) veya güç kaynağı kaynaklıdır." 'https://learn.microsoft.com/tr-tr/troubleshoot/windows-client/performance/stop-error-or-blue-screen-error-troubleshooting' 'Sorun giderme rehberi'
+    Bulgu 'bad' 'Kararlılık' "Son 30 günde $($bsod.Count) kez mavi ekran (BSOD) oluştu" "Son: $($olaylar.maviEkran.son). Mavi ekranın en sık sebepleri sürücüler, bellek ayarları (XMP) ve güç kaynağıdır; tek seferlik olduysa endişelenmeyin. Sık tekrarlıyorsa önce sürücüleri güncelleyin." 'https://learn.microsoft.com/tr-tr/troubleshoot/windows-client/performance/stop-error-or-blue-screen-error-troubleshooting' 'Sorun giderme rehberi'
 }
 if ($kapanma -gt 0) {
     $lvl = if ($kapanma -ge 3) { 'warn' } else { 'info' }
-    Bulgu $lvl 'Kararlılık' "Son 30 günde $kapanma beklenmeyen kapanma" "Son: $($olaylar.beklenmeyenKapanma.son). Elektrik kesintisi, güç tuşuna basılı tutma veya donma sonrası zorla kapatma olabilir. Kendiliğinden oluyorsa güç kaynağı/ısı kontrol edilmeli."
+    Bulgu $lvl 'Kararlılık' "Son 30 günde $kapanma kez düzgün kapatılmadan kapandı" "Son: $($olaylar.beklenmeyenKapanma.son). Elektrik kesintisi, güç tuşuna basılı tutarak kapatma veya donma sonrası zorla kapatma bu kaydı oluşturur; bunları siz yaptıysanız sorun yoktur. Bilgisayar kendiliğinden kapanıyor ya da yeniden başlıyorsa güç kaynağı veya ısınma kontrol edilmelidir."
 }
 if ($wheaHata.Count -gt 0) {
-    Bulgu 'bad' 'Kararlılık' "$($wheaHata.Count) donanım hatası (WHEA) kaydedildi" "Son: $($olaylar.donanimHatasi.son). İşlemci, RAM veya PCIe aygıtlarında düzeltilemeyen hata. Hız aşırtma/XMP varsa kapatıp deneyin."
+    Bulgu 'bad' 'Kararlılık' "$($wheaHata.Count) donanım hatası (WHEA) kaydedildi" "Son: $($olaylar.donanimHatasi.son). İşlemci, bellek veya bir PCIe aygıtı düzeltilemeyen bir hata bildirdi. Hız aşırtma veya XMP açıksa kapatıp sorunun sürüp sürmediğine bakın."
 } elseif ($wheaDuzeltilen.Count -gt 50) {
-    Bulgu 'warn' 'Kararlılık' "$($wheaDuzeltilen.Count) düzeltilmiş donanım uyarısı (WHEA)" 'Genellikle PCIe güç tasarrufu (ASPM) kaynaklıdır ve zararsızdır, ama çok sık ise BIOS/yonga seti güncellemesi önerilir.' $DESTEK 'Anakart destek sayfası'
+    Bulgu 'info' 'Kararlılık' "$($wheaDuzeltilen.Count) düzeltilmiş donanım uyarısı (WHEA)" 'Bunlar donanımın kendi düzelttiği küçük hatalardır ve genellikle PCIe güç tasarrufundan kaynaklanır; tek başına sorun değildir. Çok sık ise BIOS ve yonga seti güncellemesi önerilir.' $DESTEK 'Anakart destek sayfası'
 }
 if ($diskHata.Count -gt 0) {
-    Bulgu 'warn' 'Depolama' "Son 30 günde $($diskHata.Count) disk/dosya sistemi hatası" "Son: $($olaylar.diskHatasi.son). Kablo bağlantısını kontrol edin; tekrar ediyorsa 'chkdsk' çalıştırın ve yedek alın."
+    Bulgu 'warn' 'Depolama' "Son 30 günde $($diskHata.Count) disk/dosya sistemi uyarısı" "Son: $($olaylar.diskHatasi.son). USB bellek veya harici diskin çekilmesi de bu kaydı oluşturabilir. Dahili bir diskte tekrar ediyorsa kablo bağlantısını kontrol edin ve yedek alın."
 }
 if ($gpuTdr.Count -gt 0) {
-    Bulgu 'warn' 'Ekran Kartı' "Ekran sürücüsü $($gpuTdr.Count) kez yanıt vermeyi durdurdu" "Son: $($olaylar.ekranSurucusu.son). Sürücüyü temiz kurulumla güncelleyin; devam ederse GPU sıcaklığı/güç kaynağı kontrol edilmeli." $NVIDIA_LINK 'Sürücü indir'
+    Bulgu 'warn' 'Ekran Kartı' "Ekran sürücüsü $($gpuTdr.Count) kez yanıt vermeyi durdurdu" "Son: $($olaylar.ekranSurucusu.son). Ekran kısa süre kararıp geri geldiyse bu kayıt oluşur. Önce ekran kartı sürücüsünü güncelleyin; devam ederse sıcaklık ve güç kaynağı kontrol edilmelidir." $NVIDIA_LINK 'Sürücü indir'
 }
 if (-not $bsod.Count -and -not $wheaHata.Count -and $kapanma -lt 3) {
     Bulgu 'ok' 'Kararlılık' 'Sistem kararlı çalışıyor' "Son 30 günde mavi ekran veya düzeltilemeyen donanım hatası yok."
 }
 
-# ------------------------------------------------------------------ 8. sorunlu aygıtlar
+# ------------------------------------------------------------------ aygıtlar
 Adim "Aygıt Yöneticisi kontrolü"
 $kodlar = @{
     1 = 'Aygıt doğru yapılandırılmamış'; 3 = 'Sürücü bozuk veya sistem kaynakları yetersiz'; 10 = 'Aygıt başlatılamıyor'
@@ -535,30 +623,34 @@ foreach ($d in ($mevcutAygitlar | Where-Object { $_.Status -in 'Error', 'Degrade
     $linkler += [ordered]@{ m = 'Donanım kimliğini ara'; u = (Ara "$donanimId driver") }
     $sorunlu += [ordered]@{ ad = $ad; sinif = "$($d.Class)"; kod = $kod; aciklama = if ($kodlar.ContainsKey([int]$kod)) { $kodlar[[int]$kod] } else { "Hata kodu $kod" }; donanimId = $donanimId; linkler = $linkler }
 }
-if ($sorunlu.Count) {
-    $eksik = @($sorunlu | Where-Object { $_.kod -eq 28 }).Count
-    $intelMi = @($sorunlu | Where-Object { $_.donanimId -match '8086|INTC' }).Count
-    $detay = ($sorunlu | ForEach-Object { "$($_.ad) — $($_.aciklama)" }) -join '; '
-    if ($intelMi -ge 2) {
-        $detay += '. Bu aygıtlar Intel yonga seti parçaları (SMBus, PCI, RAID/VMD, GPIO). Anakart üreticisinin sayfasından "Chipset" ve "Intel Serial IO / RST" sürücülerini kurmak genellikle hepsini çözer.'
-    }
-    Bulgu 'bad' 'Sürücüler' "$($sorunlu.Count) aygıt düzgün çalışmıyor ($eksik tanesinin sürücüsü yok)" $detay $DESTEK 'Anakart sürücülerini indir'
-} else {
-    Bulgu 'ok' 'Sürücüler' "Aygıt Yöneticisi'nde hatalı aygıt yok" 'Takılı tüm aygıtların sürücüsü yüklü ve çalışıyor.'
+$eksikSurucu = @($sorunlu | Where-Object { $_.kod -eq 28 })
+$arizali = @($sorunlu | Where-Object { $_.kod -ne 28 })
+if ($eksikSurucu.Count) {
+    $intelMi = @($eksikSurucu | Where-Object { $_.donanimId -match '8086|INTC' }).Count
+    $detay = "Sürücüsü olmayan aygıtlar: " + (($eksikSurucu | ForEach-Object { $_.ad }) -join ', ') + '. Bu aygıtlar bozuk değildir; Windows onları tanıyamadığı için kullanmıyor. Bilgisayarınız çalışır, ama güç yönetimi gibi bazı özellikler tam verimli olmayabilir.'
+    if ($intelMi -ge 2) { $detay += ' Bunlar Intel yonga seti parçaları: anakart üreticisinin sayfasından "Chipset" ve "Serial IO" sürücülerini kurmak genellikle hepsini çözer.' }
+    Bulgu 'warn' 'Sürücüler' "$($eksikSurucu.Count) aygıtın sürücüsü kurulu değil" $detay $DESTEK 'Anakart sürücülerini indir'
+}
+if ($arizali.Count) {
+    $detay = (($arizali | ForEach-Object { "$($_.ad): $($_.aciklama)" }) -join '; ') + '. Önce bilgisayarı yeniden başlatmayı ve aygıtın sürücüsünü yeniden kurmayı deneyin.'
+    Bulgu 'bad' 'Aygıtlar' "$($arizali.Count) aygıt hata veriyor" $detay $DESTEK 'Sürücüleri indir'
+}
+if (-not $sorunlu.Count) {
+    Bulgu 'ok' 'Sürücüler' "Aygıt Yöneticisi'nde sorunlu aygıt yok" 'Takılı tüm aygıtların sürücüsü yüklü ve çalışıyor.'
 }
 
-# ------------------------------------------------------------------ 9. sürücüler
+# ------------------------------------------------------------------ sürücüler
 Adim "Sürücüler kontrol ediliyor"
 $mevcutIds = @{}
 foreach ($a in $mevcutAygitlar) { $mevcutIds["$($a.InstanceId)".ToUpper()] = $true }
 $imzaliSuruculer = @(Get-CimInstance Win32_PnPSignedDriver | Where-Object { $_.DeviceID -and $mevcutIds.ContainsKey("$($_.DeviceID)".ToUpper()) })
 
-function SurucuLinki($saglayici, $ad, $sinif) {
+function SurucuLinki($saglayici, $ad) {
     $s = "$saglayici $ad"
     if ($s -match 'NVIDIA') { return $NVIDIA_LINK }
     if ($s -match 'AMD|Advanced Micro|Radeon') { return $AMD_LINK }
     if ($s -match 'Intel') { return $INTEL_DSA }
-    if ($s -match 'Realtek|Killer|MediaTek|Qualcomm|Atheros|Broadcom|ASMedia|Aquantia|Marvell') { return $DESTEK }
+    if ($s -match 'Realtek|Killer|MediaTek|Qualcomm|Atheros|Broadcom|ASMedia|Aquantia|Marvell|Synaptics|ELAN') { return $DESTEK }
     if ($s -match 'Logitech') { return 'https://www.logitechg.com/tr-tr/innovation/g-hub.html' }
     if ($s -match 'SteelSeries') { return 'https://steelseries.com/gg' }
     if ($s -match 'Razer') { return 'https://www.razer.com/synapse-4' }
@@ -569,8 +661,7 @@ function SurucuLinki($saglayici, $ad, $sinif) {
     return (Ara "$saglayici $ad driver download")
 }
 
-# 9a. Windows Update üzerinde bekleyen sürücüler
-Bilgi "Windows Update'te bekleyen sürücü güncellemeleri aranıyor (biraz sürebilir)..."
+Bilgi "Windows Update'te bekleyen sürücüler aranıyor (biraz sürebilir)..."
 $wuListe = @()
 $wuHata = $null
 try {
@@ -580,9 +671,9 @@ try {
         $wuListe += [ordered]@{ baslik = "$($u.Title)"; model = "$($u.DriverModel)"; sinif = "$($u.DriverClass)"; saglayici = "$($u.DriverProvider)"; tarih = Tarih $u.DriverVerDate }
     }
 } catch { $wuHata = "$($_.Exception.Message)" }
-Bilgi "$($wuListe.Count) güncelleme bulundu"
+Bilgi "$($wuListe.Count) sürücü güncellemesi bulundu"
+Iptal
 
-# 9b. NVIDIA en son sürüm kontrolü
 $nvidia = $null
 $nvGpu = $gpuListe | Where-Object { $_.uretici -eq 'NVIDIA' -and -not $_.sanal } | Select-Object -First 1
 if ($nvGpu) {
@@ -592,17 +683,17 @@ if ($nvGpu) {
     $nvidia = [ordered]@{ kurulu = $kurulu; enSon = $null; tarih = $null; detay = $NVIDIA_LINK; indir = $null; guncel = $null }
     try {
         Bilgi 'NVIDIA sunucusundan en son sürücü sorgulanıyor...'
-        $notebook = $nvGpu.ad -match 'Laptop'
-        $psid = if ($notebook) { 129 } else { 127 }
-        $pfid = if ($notebook) { 1036 } else { 1041 }
-        $url = "https://gfwsl.geforce.com/services_toolkit/services/com/nvidia/services/AjaxDriverService.php?func=DriverManualLookup&psid=$psid&pfid=$pfid&osID=57&languageCode=1033&isWHQL=1&dch=1&sort1=0&numberOfResults=1"
+        # Masaüstü ve dizüstü GeForce sürücüleri aynı sürüm numarasıyla yayınlanır
+        $url = 'https://gfwsl.geforce.com/services_toolkit/services/com/nvidia/services/AjaxDriverService.php?func=DriverManualLookup&psid=127&pfid=1041&osID=57&languageCode=1033&isWHQL=1&dch=1&sort1=0&numberOfResults=1'
         $j = Invoke-RestMethod -Uri $url -TimeoutSec 20 -UseBasicParsing
         $info = $j.IDS[0].downloadInfo
         if ($info.Version) {
             $nvidia.enSon = "$($info.Version)"
             $nvidia.tarih = [uri]::UnescapeDataString("$($info.ReleaseDateTime)")
-            if ($info.DetailsURL) { $nvidia.detay = "$($info.DetailsURL)" }
-            if ($info.DownloadURL) { $nvidia.indir = "$($info.DownloadURL)" }
+            if ($nvGpu.ad -notmatch 'Laptop') {
+                if ($info.DetailsURL) { $nvidia.detay = "$($info.DetailsURL)" }
+                if ($info.DownloadURL) { $nvidia.indir = "$($info.DownloadURL)" }
+            }
             $nvidia.guncel = ([double]::Parse($kurulu, [Globalization.CultureInfo]::InvariantCulture) -ge [double]::Parse($nvidia.enSon, [Globalization.CultureInfo]::InvariantCulture))
         }
     } catch { Bilgi "NVIDIA sorgusu başarısız: $($_.Exception.Message)" }
@@ -610,19 +701,18 @@ if ($nvGpu) {
     if ($nvidia.guncel -eq $true) {
         Bulgu 'ok' 'Sürücüler' "NVIDIA sürücüsü güncel ($kurulu)" "En son Game Ready sürücüsü kurulu." $nvidia.detay 'Sürüm notları'
     } elseif ($nvidia.guncel -eq $false) {
-        Bulgu 'warn' 'Sürücüler' "NVIDIA sürücüsü güncellenebilir: $kurulu → $($nvidia.enSon)" "Yeni sürüm $($nvidia.tarih) tarihinde yayınlandı. NVIDIA App üzerinden ya da aşağıdaki bağlantıdan güncelleyebilirsiniz." $nvidia.detay 'Sürücüyü indir'
+        Bulgu 'warn' 'Sürücüler' "NVIDIA sürücüsü güncellenebilir: $kurulu → $($nvidia.enSon)" "Yeni sürüm $($nvidia.tarih) tarihinde yayınlandı. Mevcut sürücünüz çalışıyor; yeni sürümler genelde yeni oyunlar için iyileştirmeler ve hata düzeltmeleri içerir. NVIDIA App üzerinden veya bağlantıdan güncelleyebilirsiniz." $nvidia.detay 'Sürücüyü indir'
     }
 }
 foreach ($g in ($gpuListe | Where-Object { -not $_.sanal -and $_.uretici -in 'AMD', 'Intel' })) {
     $link = if ($g.uretici -eq 'AMD') { $AMD_LINK } else { $INTEL_DSA }
     if ($g.surucuYasGun -gt 180) {
-        Bulgu 'warn' 'Sürücüler' "$($g.ad) sürücüsü $([int]($g.surucuYasGun/30)) aylık" "Kurulu sürüm $($g.surucu) ($($g.surucuTarih)). Ekran kartı sürücüleri sık güncellenir, yeni sürüm muhtemelen mevcut." $link 'Sürücüyü indir'
+        Bulgu 'warn' 'Sürücüler' "$($g.ad) sürücüsü $([int]($g.surucuYasGun/30)) aylık" "Kurulu sürüm $($g.surucu) ($($g.surucuTarih)). Ekran kartı sürücüleri sık güncellenir; büyük ihtimalle daha yeni bir sürüm vardır.$(if ($sistem.dizustu) { ' Dizüstü bilgisayarlarda önce üreticinin destek sayfasına bakmanız önerilir.' })" $link 'Sürücüyü indir'
     } else {
-        Bulgu 'info' 'Sürücüler' "$($g.ad) sürücüsü $($g.surucuTarih) tarihli" "Kurulu sürüm $($g.surucu). En sonunu üreticinin sayfasından kontrol edebilirsiniz." $link 'Üretici sayfası'
+        Bulgu 'info' 'Sürücüler' "$($g.ad) sürücüsü $($g.surucuTarih) tarihli" "Kurulu sürüm $($g.surucu). Bu üretici için otomatik sürüm karşılaştırması yapılamıyor; en sonunu üreticinin sayfasından kontrol edebilirsiniz." $link 'Üretici sayfası'
     }
 }
 
-# Windows Update model adının tüm kelimeleri aygıt adında geçiyorsa eşleşmiş say
 function WuEslesir($model, $aygit) {
     if (-not $model -or -not $aygit) { return $false }
     $kelimeler = @("$model".ToLower() -split '[^a-z0-9\.\-]+' | Where-Object { $_.Length -gt 2 })
@@ -632,7 +722,6 @@ function WuEslesir($model, $aygit) {
     return $true
 }
 
-# 9c. Önemli sürücüler tablosu
 $siniflar = @{ 'DISPLAY' = 'Ekran kartı'; 'NET' = 'Ağ'; 'MEDIA' = 'Ses'; 'SYSTEM' = 'Yonga seti'; 'HDC' = 'Depolama'; 'SCSIADAPTER' = 'Depolama'; 'BLUETOOTH' = 'Bluetooth'; 'USB' = 'USB' }
 $onemli = @()
 foreach ($d in $imzaliSuruculer) {
@@ -652,7 +741,7 @@ foreach ($d in $imzaliSuruculer) {
     elseif ($inf) { $durum = 'info'; $durumMetin = 'Yalnızca tanımlama (INF)' }
     elseif ($yas -gt 1095) { $durum = 'warn'; $durumMetin = "$([int]($yas/365)) yıllık, güncellemesi olabilir" }
     elseif ($yas -gt 545) { $durum = 'info'; $durumMetin = 'Bir yıldan eski' }
-    $link = if ($wuEslesme) { $WU_LINK } elseif ($sinif -eq 'DISPLAY' -and $nvidia) { $nvidia.detay } elseif ($ms) { $DESTEK } else { SurucuLinki $d.DriverProviderName $d.DeviceName $sinif }
+    $link = if ($wuEslesme) { $WU_LINK } elseif ($sinif -eq 'DISPLAY' -and $nvidia) { $nvidia.detay } elseif ($ms) { $DESTEK } else { SurucuLinki $d.DriverProviderName $d.DeviceName }
     $onemli += [ordered]@{
         ad = "$($d.DeviceName)"; tur = $siniflar[$sinif]; saglayici = "$($d.DriverProviderName)"; surum = "$($d.DriverVersion)"
         tarih = Tarih $d.DriverDate; yasGun = $yas; durum = $durum; durumMetin = $durumMetin; link = $link
@@ -661,36 +750,35 @@ foreach ($d in $imzaliSuruculer) {
 $turSira = @{ 'Ekran kartı' = 0; 'Yonga seti' = 1; 'Depolama' = 2; 'Ağ' = 3; 'Ses' = 4; 'Bluetooth' = 5; 'USB' = 6 }
 $onemli = @($onemli | Sort-Object { $turSira[$_.tur] }, ad)
 
-# 9d. Tüm üçüncü taraf sürücülerde eski olanlar
 $eskiler = @()
 foreach ($d in $imzaliSuruculer) {
     if ("$($d.DriverProviderName)" -match '^Microsoft' -or -not $d.DriverDate) { continue }
     if (([datetime]$d.DriverDate).Year -lt 2000) { continue }
     $yas = YasGun $d.DriverDate
     if ($yas -gt 1095) {
-        $eskiler += [ordered]@{ ad = "$($d.DeviceName)"; saglayici = "$($d.DriverProviderName)"; surum = "$($d.DriverVersion)"; tarih = Tarih $d.DriverDate; yasGun = $yas; link = SurucuLinki $d.DriverProviderName $d.DeviceName $d.DeviceClass }
+        $eskiler += [ordered]@{ ad = "$($d.DeviceName)"; saglayici = "$($d.DriverProviderName)"; surum = "$($d.DriverVersion)"; tarih = Tarih $d.DriverDate; yasGun = $yas; link = SurucuLinki $d.DriverProviderName $d.DeviceName }
     }
 }
 $eskiler = @($eskiler | Sort-Object yasGun -Descending | Group-Object ad | ForEach-Object { $_.Group[0] })
 
 if ($wuListe.Count) {
-    $ozet = ($wuListe | ForEach-Object { "$($_.model) ($($_.saglayici))" }) -join ', '
-    Bulgu 'warn' 'Sürücüler' "Windows Update'te $($wuListe.Count) sürücü güncellemesi bekliyor" "$ozet. Ayarlar → Windows Update → Gelişmiş seçenekler → İsteğe bağlı güncelleştirmeler bölümünden yükleyebilirsiniz." $WU_LINK 'İsteğe bağlı güncellemeleri aç'
+    $ozet = ($wuListe | ForEach-Object { $_.model } | Select-Object -Unique) -join ', '
+    Bulgu 'warn' 'Sürücüler' "Windows Update'te $($wuListe.Count) sürücü güncellemesi bekliyor" "$ozet. Bunlar Microsoft'un onayladığı güncellemelerdir ve tek tıkla yüklenebilir: Ayarlar → Windows Update → Gelişmiş seçenekler → İsteğe bağlı güncelleştirmeler." $WU_LINK 'İsteğe bağlı güncellemeleri aç'
 } elseif (-not $wuHata) {
     Bulgu 'ok' 'Sürücüler' "Windows Update'te bekleyen sürücü yok" 'Microsoft kataloğundaki tüm sürücüler güncel.'
 }
 if ($eskiler.Count) {
     $ornekler = ($eskiler | Select-Object -First 4 | ForEach-Object { "$($_.ad) ($($_.tarih))" }) -join ', '
-    Bulgu 'info' 'Sürücüler' "$($eskiler.Count) sürücü 3 yıldan eski" "$ornekler. Bu her zaman sorun değildir; bazı aygıtlar yeni sürüm almaz. Liste Sürücüler bölümünde."
+    Bulgu 'info' 'Sürücüler' "$($eskiler.Count) sürücü 3 yıldan eski" "$ornekler. Bu genellikle sorun değildir; bazı aygıtlar için yeni sürüm hiç çıkmaz. Aygıt düzgün çalışıyorsa dokunmanıza gerek yok."
 }
 
 $suruculer = [ordered]@{ windowsUpdate = $wuListe; wuHata = $wuHata; nvidia = $nvidia; onemli = $onemli; eski = $eskiler; sorunluAygitlar = $sorunlu; toplam = $imzaliSuruculer.Count }
 
-# ------------------------------------------------------------------ 10. diğer
-Adim "Ağ, sıcaklık ve rapor"
-$ag = @(Get-NetAdapter -Physical | ForEach-Object { [ordered]@{ ad = "$($_.Name)"; aciklama = "$($_.InterfaceDescription)"; durum = "$($_.Status)"; hiz = "$($_.LinkSpeed)"; mac = $null; surucu = "$($_.DriverVersion)" } })
+# ------------------------------------------------------------------ rapor
+Adim "Sonuçlar hazırlanıyor"
+$ag = @(Get-NetAdapter -Physical | ForEach-Object { [ordered]@{ ad = "$($_.Name)"; aciklama = "$($_.InterfaceDescription)"; durum = "$($_.Status)"; hiz = "$($_.LinkSpeed)"; surucu = "$($_.DriverVersion)" } })
 foreach ($n in (Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' -and $_.InterfaceDescription -match '2\.5G|5G|10G' -and $_.LinkSpeed -match '^(100 Mbps|1 Gbps)' })) {
-    Bulgu 'info' 'Ağ' "$($n.InterfaceDescription) $($n.LinkSpeed) bağlı" 'Kart daha yüksek hızı destekliyor; modem/switch 1 Gbps ise bu normaldir. Değilse kabloyu (Cat5e/Cat6) kontrol edin.'
+    Bulgu 'info' 'Ağ' "Ağ kartı $($n.LinkSpeed) hızında bağlı" "$($n.InterfaceDescription) daha yüksek hızı destekliyor. Modeminiz veya switch'iniz 1 Gbps ise bu normaldir ve internet hızınızı etkilemez."
 }
 
 $termal = @()
@@ -701,35 +789,89 @@ foreach ($t in @(Get-CimInstance Win32_PerfFormattedData_Counters_ThermalZoneInf
 if ($nvSmi) { $termal += [ordered]@{ ad = 'Ekran kartı'; sicaklik = $nvSmi.sicaklik } }
 foreach ($d in $diskListe) { if ($d.sicaklik) { $termal += [ordered]@{ ad = $d.ad; sicaklik = $d.sicaklik } } }
 
-# puan
-$puan = 100
-foreach ($b in $Bulgular) { if ($b.seviye -eq 'bad') { $puan -= 12 } elseif ($b.seviye -eq 'warn') { $puan -= 5 } }
-$puan = [math]::Max(0, $puan)
+# İki ayrı puan: donanım arızası ile bakım işleri karıştırılmasın
+function PuanHesapla($tur, $kotu, $uyari) {
+    $p = 100
+    foreach ($b in $Bulgular) { if ($b.tur -eq $tur) { if ($b.seviye -eq 'bad') { $p -= $kotu } elseif ($b.seviye -eq 'warn') { $p -= $uyari } } }
+    return [math]::Max(0, $p)
+}
+$puan = [ordered]@{ donanim = PuanHesapla 'donanim' 20 7; bakim = PuanHesapla 'bakim' 15 6 }
+
+# Önceki taramayla karşılaştırma
+$raporDizin = if ($RaporDizini) { $RaporDizini } else { Join-Path $KokDizin 'Raporlar' }
+$gecmisDizin = Join-Path $raporDizin 'gecmis'
+New-Item -ItemType Directory -Force -Path $gecmisDizin | Out-Null
+$karsilastirma = $null
+$onceki = $null
+$oncekiDosya = Get-ChildItem $gecmisDizin -Filter '*.json' | Sort-Object Name -Descending | Select-Object -First 1
+if ($oncekiDosya) { try { $onceki = [IO.File]::ReadAllText($oncekiDosya.FullName, [Text.Encoding]::UTF8) | ConvertFrom-Json } catch {} }
+if ($onceki -and $onceki.puan -and $onceki.puan.donanim -ne $null) {
+    $degisim = @()
+    function Degisim($ad, $once, $simdi, $birim, $yuksekIyi, $esikYuzde) {
+        if ($null -eq $once -or $null -eq $simdi -or [double]$once -eq 0) { return }
+        $fark = 100.0 * ([double]$simdi - [double]$once) / [double]$once
+        if ([math]::Abs($fark) -lt $esikYuzde) { $yon = 'ayni' } elseif (($fark -gt 0) -eq $yuksekIyi) { $yon = 'iyi' } else { $yon = 'kotu' }
+        $script:degisim += [ordered]@{ ad = $ad; once = $once; simdi = $simdi; birim = $birim; farkYuzde = [math]::Round($fark, 1); yon = $yon }
+    }
+    foreach ($d in $diskListe) {
+        $od = @($onceki.diskler) | Where-Object { $_.ad -eq $d.ad } | Select-Object -First 1
+        if (-not $od) { continue }
+        if ($null -ne $d.asinma -and $null -ne $od.asinma -and $d.asinma -ne $od.asinma) {
+            $script:degisim += [ordered]@{ ad = "$($d.ad) ömür kullanımı"; once = $od.asinma; simdi = $d.asinma; birim = '%'; farkYuzde = $null; yon = if ($d.asinma - $od.asinma -ge 5) { 'kotu' } else { 'ayni' } }
+        }
+        if ($d.test -and $od.test) { Degisim "$($d.ad) okuma hızı" $od.test.siraliOkuma $d.test.siraliOkuma 'MB/s' $true 15 }
+    }
+    if ($cpuBilgi.test -and $onceki.cpu.test) {
+        Degisim 'İşlemci tek çekirdek' $onceki.cpu.test.tekCekirdek $cpuBilgi.test.tekCekirdek 'puan' $true 8
+        Degisim 'İşlemci çok çekirdek' $onceki.cpu.test.cokCekirdek $cpuBilgi.test.cokCekirdek 'puan' $true 8
+    }
+    if ($ram.bantGBs -and $onceki.ram.bantGBs) { Degisim 'Bellek hızı' $onceki.ram.bantGBs $ram.bantGBs 'GB/s' $true 10 }
+    if ($pil -and $onceki.pil) {
+        $po = @($onceki.pil.piller)[0]; $ps = @($pil.piller)[0]
+        if ($po -and $ps) { Degisim 'Pil kapasitesi' $po.doluMWh $ps.doluMWh 'mWh' $true 2 }
+    }
+    $oncekiKodlar = @{}
+    foreach ($b in @($onceki.bulgular)) { if ($b.seviye -in 'bad', 'warn' -and $b.kod) { $oncekiKodlar[$b.kod] = $b.baslik } }
+    $simdikiKodlar = @{}
+    foreach ($b in $Bulgular) { if ($b.seviye -in 'bad', 'warn') { $simdikiKodlar[$b.kod] = $b.baslik } }
+    $cozulen = @($oncekiKodlar.Keys | Where-Object { -not $simdikiKodlar.ContainsKey($_) } | ForEach-Object { $oncekiKodlar[$_] })
+    $yeni = @($simdikiKodlar.Keys | Where-Object { -not $oncekiKodlar.ContainsKey($_) } | ForEach-Object { $simdikiKodlar[$_] })
+    $karsilastirma = [ordered]@{
+        tarih = $onceki.meta.tarih; tamTarama = [bool]$onceki.meta.testYapildi
+        donanimOnce = $onceki.puan.donanim; bakimOnce = $onceki.puan.bakim
+        degisimler = @($degisim); cozulen = $cozulen; yeni = $yeni
+    }
+}
 
 $sira = @{ bad = 0; warn = 1; info = 2; ok = 3 }
+$zaman = Get-Date
+$damga = $zaman.ToString('yyyy-MM-dd_HH-mm-ss')
+$raporYolu = Join-Path $raporDizin ("SistemCheckup_{0}.html" -f $damga)
 $veri = [ordered]@{
-    meta = [ordered]@{ tarih = (Get-Date).ToString('dd.MM.yyyy HH:mm'); yonetici = $Admin; sureSn = [int]((Get-Date) - $Baslangic).TotalSeconds; testYapildi = $benchYuklu; surum = $UygulamaSurum }
+    meta = [ordered]@{ tarih = $zaman.ToString('dd.MM.yyyy HH:mm'); yonetici = $Admin; sureSn = [int]($zaman - $Baslangic).TotalSeconds; testYapildi = $benchYuklu; surum = $UygulamaSurum; raporYolu = $raporYolu }
     puan = $puan
-    sistem = $sistem; cpu = $cpuBilgi; gpu = @($gpuListe); ram = $ram; diskler = @($diskListe)
+    sistem = $sistem; pil = $pil; cpu = $cpuBilgi; gpu = @($gpuListe); ram = $ram; diskler = @($diskListe)
     olaylar = $olaylar; suruculer = $suruculer; ag = $ag; termal = @($termal)
+    karsilastirma = $karsilastirma
     bulgular = @($Bulgular | Sort-Object { $sira[$_.seviye] })
 }
 
-$json = ($veri | ConvertTo-Json -Depth 10 -Compress) -replace '</', '<\/'
+$jsonKompakt = $veri | ConvertTo-Json -Depth 10 -Compress
 $sablon = [IO.File]::ReadAllText((Join-Path $KokDizin 'rapor_sablon.html'), [Text.Encoding]::UTF8)
-$html = $sablon.Replace('/*__VERI__*/null', $json)
-$raporDizin = if ($RaporDizini) { $RaporDizini } else { Join-Path $KokDizin 'Raporlar' }
+$html = $sablon.Replace('/*__VERI__*/null', ($jsonKompakt -replace '</', '<\/'))
 New-Item -ItemType Directory -Force -Path $raporDizin | Out-Null
-$raporYolu = Join-Path $raporDizin ("SistemCheckup_{0}.html" -f (Get-Date -Format 'yyyy-MM-dd_HH-mm'))
-[IO.File]::WriteAllText($raporYolu, $html, (New-Object Text.UTF8Encoding($false)))
-[IO.File]::WriteAllText((Join-Path $raporDizin 'son_rapor.json'), ($veri | ConvertTo-Json -Depth 10), (New-Object Text.UTF8Encoding($false)))
+[IO.File]::WriteAllText($raporYolu, $html, $Utf8)
+[IO.File]::WriteAllText((Join-Path $raporDizin 'son_rapor.json'), $jsonKompakt, $Utf8)
+[IO.File]::WriteAllText((Join-Path $gecmisDizin "$damga.json"), $jsonKompakt, $Utf8)
+# Geçmişte en fazla 30 tarama tut
+Get-ChildItem $gecmisDizin -Filter '*.json' | Sort-Object Name -Descending | Select-Object -Skip 30 | Remove-Item -Force
+Get-ChildItem $raporDizin -Filter 'SistemCheckup_*.html' | Sort-Object Name -Descending | Select-Object -Skip 30 | Remove-Item -Force
 
-$kotu = @($Bulgular | Where-Object { $_.seviye -eq 'bad' }).Count
-$uyari = @($Bulgular | Where-Object { $_.seviye -eq 'warn' }).Count
 Write-Host ""
-Write-Host ("  Sağlık puanı: {0}/100   ·   {1} sorun, {2} uyarı" -f $puan, $kotu, $uyari) -ForegroundColor $(if ($puan -ge 80) { 'Green' } elseif ($puan -ge 60) { 'Yellow' } else { 'Red' })
+Write-Host ("  Donanım sağlığı: {0}/100   ·   Bakım: {1}/100" -f $puan.donanim, $puan.bakim) -ForegroundColor $(if ($puan.donanim -ge 80) { 'Green' } elseif ($puan.donanim -ge 60) { 'Yellow' } else { 'Red' })
 Write-Host "  Rapor: $raporYolu" -ForegroundColor Gray
 Write-Host ""
+Ilerleme "BITTI|$raporYolu"
 
 if (-not $Sessiz) {
     Start-Process $raporYolu
