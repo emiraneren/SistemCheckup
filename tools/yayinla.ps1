@@ -13,9 +13,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$kok = $PSScriptRoot
+$kok = Split-Path -Parent $PSScriptRoot   # depo kökü (betik tools\ içinde)
 Set-Location $kok
-$ayar = Get-Content -Raw -Encoding UTF8 (Join-Path $kok 'proje.json') | ConvertFrom-Json
+$ayar = Get-Content -Raw -Encoding UTF8 (Join-Path $kok 'tools\proje.json') | ConvertFrom-Json
 $etiket = "v$Surum"
 $yeni = [version]$Surum
 $tarih = Get-Date -Format 'yyyy-MM-dd'
@@ -33,13 +33,13 @@ if (-not $Taslak) {
 }
 
 # Sürüm geçmişi (en yeni başta)
-$gecmisYol = Join-Path $kok 'surumler.json'
+$gecmisYol = Join-Path $kok 'tools\surumler.json'
 $gecmis = @()
 # PowerShell 5.1'de ConvertFrom-Json diziyi tek nesne olarak verir; ForEach-Object ile öğelerine ayır
 if (Test-Path $gecmisYol) { $gecmis = @([IO.File]::ReadAllText($gecmisYol, [Text.Encoding]::UTF8) | ConvertFrom-Json | ForEach-Object { $_ }) }
 $gecmis = @([ordered]@{ surum = $Surum; tarih = $tarih; notlar = $Notlar }) + @($gecmis | Where-Object { $_.surum -ne $Surum })
 
-& (Join-Path $kok 'build.ps1') -Surum $Surum
+& (Join-Path $kok 'tools\build.ps1') -Surum $Surum
 $dist = Join-Path $kok 'dist'
 $paket = Join-Path $dist 'SistemCheckup'
 

@@ -1,5 +1,11 @@
 # Değişiklikler
 
+## 1.3.0 — 2026-10-16
+
+- Klasör sadeleştirildi: artık yalnızca SistemCheckup.exe (açmanız gereken), Kaldir.exe ve BENIOKU.txt görünüyor; güncelleyici app klasörüne taşındı
+- Güncelleme sırasında neyin değiştiği kısaca gösteriliyor
+- Yeni açıklayıcı README ve ekran görüntüleri
+
 ## 1.2.0 — 2026-10-16
 
 - Yeni Ana sayfa: sağlık puanlarının, işlemci ve disk hızının zaman içindeki değişimi grafiklerle gösteriliyor; geçmiş taramaların raporları tek tıkla açılıyor

@@ -1,17 +1,22 @@
 {
-    "surum":  "1.2.0",
-    "etiket":  "v1.2.0",
+    "surum":  "1.3.0",
+    "etiket":  "v1.3.0",
     "tarih":  "2026-10-16",
     "notlar":  [
-                   "Yeni Ana sayfa: sağlık puanlarının, işlemci ve disk hızının zaman içindeki değişimi grafiklerle gösteriliyor; geçmiş taramaların raporları tek tıkla açılıyor",
-                   "Yeni Sistem bilgileri sekmesi: tüm donanım ayrıntıları ile bağlı monitör (model, boyut, Hz), klavye, fare, kumanda, ses cihazları, kamera ve Bluetooth cihazları",
-                   "Yeni Temizlik sekmesi: geçici dosyaları ve tarayıcı / uygulama önbelleklerini silerek yer açar; belgelere, şifrelere ve geçmişe dokunmaz",
-                   "Sürücü güncellemeleri artık \"büyük\" ve \"küçük\" diye ayrılıyor ve her birinin ne kazandıracağı yazıyor; küçük güncellemeler puanı düşürmüyor",
-                   "Monitör desteklediğinden düşük yenileme hızında çalışıyorsa uyarıyor ve nasıl düzeltileceğini anlatıyor",
-                   "Yeni \"Nasıl çalışıyor?\" sekmesi ve puan kartlarında açıklama balonları",
-                   "Pencere boyutu değişirken kartların kenarlarında iz kalması düzeltildi"
+                   "Klasör sadeleştirildi: artık yalnızca SistemCheckup.exe (açmanız gereken), Kaldir.exe ve BENIOKU.txt görünüyor; güncelleyici app klasörüne taşındı",
+                   "Güncelleme sırasında neyin değiştiği kısaca gösteriliyor",
+                   "Yeni açıklayıcı README ve ekran görüntüleri"
                ],
     "gecmis":  [
+                   {
+                       "surum":  "1.3.0",
+                       "tarih":  "2026-10-16",
+                       "notlar":  [
+                                      "Klasör sadeleştirildi: artık yalnızca SistemCheckup.exe (açmanız gereken), Kaldir.exe ve BENIOKU.txt görünüyor; güncelleyici app klasörüne taşındı",
+                                      "Güncelleme sırasında neyin değiştiği kısaca gösteriliyor",
+                                      "Yeni açıklayıcı README ve ekran görüntüleri"
+                                  ]
+                   },
                    {
                        "surum":  "1.2.0",
                        "tarih":  "2026-10-16",
@@ -71,11 +76,16 @@
                    }
                ],
     "paket":  {
-                  "ad":  "SistemCheckup-v1.2.0.zip",
-                  "sha256":  "ea033982411fb3b8990e38240259fe4d4714635eaa1c8ab43e823a464a1a65dc",
-                  "boyut":  177368
+                  "ad":  "SistemCheckup-v1.3.0.zip",
+                  "sha256":  "1f923f31f0bcde14c544a808eeedd6e530e68bc4290f8536b0b68f41e4de9fd0",
+                  "boyut":  178166
               },
     "dosyalar":  [
+                     {
+                         "hedef":  "app/Guncelleyici.exe",
+                         "sha256":  "ff7cb8ac35a8c88811fe6501b9074f0f50bd003618e902f6708017491844dc1d",
+                         "boyut":  54784
+                     },
                      {
                          "hedef":  "app/rapor_sablon.html",
                          "sha256":  "0a5d65c56609f100358e20a6b9d2d6679fb4716d9258a376853752d680a50856",
@@ -98,23 +108,18 @@
                      },
                      {
                          "hedef":  "BENIOKU.txt",
-                         "sha256":  "bd513be81a27766bdde916677bc71498796ed8a388048a0633e6772dfc8a1cdd",
-                         "boyut":  2764
-                     },
-                     {
-                         "hedef":  "Guncelleyici.exe",
-                         "sha256":  "f84c3bb21f90ffb1ff7dfd4b697afa0797f8725e1b194e1be649f6b205675b68",
-                         "boyut":  54272
+                         "sha256":  "74e1b7fe82cea096f49c3b0e5a85168259874233db39f2661cbf751a471b9592",
+                         "boyut":  2853
                      },
                      {
                          "hedef":  "Kaldir.exe",
-                         "sha256":  "cb78a78ea6aef8781b719554d75ae9b54ba852d2c25a8ff45c196c716f988391",
-                         "boyut":  37376
+                         "sha256":  "2c51388bcd17b12e5fefd1d2fcf507e1fbd55e30632768a4f8a691b368872362",
+                         "boyut":  37888
                      },
                      {
                          "hedef":  "SistemCheckup.exe",
-                         "sha256":  "627fac26f6c65179ccf7b0fbbc8a7c119e991b9757294995b22a6df30d0c808f",
-                         "boyut":  142336
+                         "sha256":  "39a5835a25fb114a325e78e6e3f4925bdbfb3158b38f5013607f9e38d2e2d7b7",
+                         "boyut":  142848
                      }
                  ]
 }

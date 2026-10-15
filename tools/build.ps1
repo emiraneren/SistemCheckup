@@ -4,8 +4,8 @@
 param([Parameter(Mandatory = $true)][string]$Surum)
 
 $ErrorActionPreference = 'Stop'
-$kok = $PSScriptRoot
-$ayar = Get-Content -Raw -Encoding UTF8 (Join-Path $kok 'proje.json') | ConvertFrom-Json
+$kok = Split-Path -Parent $PSScriptRoot   # depo kökü (betik tools\ içinde)
+$ayar = Get-Content -Raw -Encoding UTF8 (Join-Path $kok 'tools\proje.json') | ConvertFrom-Json
 [void][version]$Surum
 
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
@@ -50,7 +50,7 @@ function Derle($cikti, $baslik, [string[]]$kaynaklar, [string[]]$referanslar) {
 
 Write-Host "Sistem Checkup $Surum derleniyor..." -ForegroundColor Cyan
 Derle 'SistemCheckup.exe' 'Sistem Checkup' @('Arayuz.cs', 'Temizlik.cs') @()
-Derle 'Guncelleyici.exe' 'Sistem Checkup Güncelleyici' @('Guncelleyici.cs') @('System.IO.Compression.dll', 'System.IO.Compression.FileSystem.dll')
+Derle 'app\Guncelleyici.exe' 'Sistem Checkup Güncelleyici' @('Guncelleyici.cs') @('System.IO.Compression.dll', 'System.IO.Compression.FileSystem.dll')
 Derle 'Kaldir.exe' 'Sistem Checkup Kaldırıcı' @('Kaldir.cs') @()
 
 Copy-Item (Join-Path $kok 'app\*') (Join-Path $paket 'app') -Exclude 'Raporlar', 'surum.json'

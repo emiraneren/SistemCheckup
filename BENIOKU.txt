@@ -39,7 +39,8 @@ Her tarama "Raporlar" klasörüne kaydedilir ve bir sonraki taramada neyin deği
 GÜNCELLEME
 ----------
 Yeni sürüm çıktığında Sistem Checkup penceresinin üstünde sarı bir bant belirir.
-"Şimdi güncelle" düğmesine basmanız yeterlidir. Elle denetlemek için Guncelleyici.exe'yi açın.
+"Şimdi güncelle" düğmesine basmanız yeterlidir; neyin değiştiği kısaca gösterilir. Elle denetlemek için
+programın üstündeki "Güncellemeleri denetle" bağlantısına tıklayın.
 Yalnızca değişen dosyalar indirilir ve her dosya doğrulanır.
 
 

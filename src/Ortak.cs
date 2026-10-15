@@ -74,12 +74,28 @@ namespace SistemCheckup
         public const string UygulamaAdi = "Sistem Checkup";
 
         public static string RepoUrl { get { return "https://github.com/" + Repo; } }
-        public static string KokDizin { get { return AppDomain.CurrentDomain.BaseDirectory; } }
+        // Kurulum klasörü. Güncelleyici app\ içinde durduğu için onun klasörü değil, bir üstü kökdür.
+        public static string KokDizin
+        {
+            get
+            {
+                string b = AppDomain.CurrentDomain.BaseDirectory;
+                string ad = Path.GetFileName(b.TrimEnd('\\'));
+                if (string.Equals(ad, "app", StringComparison.OrdinalIgnoreCase))
+                {
+                    string ust = Path.GetDirectoryName(b.TrimEnd('\\'));
+                    if (ust != null) return ust + "\\";
+                }
+                return b;
+            }
+        }
         public static string AppDizin { get { return Path.Combine(KokDizin, "app"); } }
         public static string RaporDizin { get { return Path.Combine(KokDizin, "Raporlar"); } }
         public static string YerelManifestYolu { get { return Path.Combine(AppDizin, "surum.json"); } }
         public static string AnaUygulamaYolu { get { return Path.Combine(KokDizin, "SistemCheckup.exe"); } }
-        public static string GuncelleyiciYolu { get { return Path.Combine(KokDizin, "Guncelleyici.exe"); } }
+        public static string GuncelleyiciYolu { get { return Path.Combine(AppDizin, "Guncelleyici.exe"); } }
+        // 1.3.0 öncesi sürümlerde güncelleyici kök klasördeydi
+        public static string EskiGuncelleyiciYolu { get { return Path.Combine(KokDizin, "Guncelleyici.exe"); } }
         public static string KaldiriciYolu { get { return Path.Combine(KokDizin, "Kaldir.exe"); } }
         public static string MasaustuKisayolu { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), UygulamaAdi + ".lnk"); } }
         public static string BaslatKisayolu { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), UygulamaAdi + ".lnk"); } }
@@ -202,9 +218,19 @@ namespace SistemCheckup
         {
             try
             {
-                foreach (string f in Directory.GetFiles(KokDizin, "*.old", SearchOption.TopDirectoryOnly))
+                foreach (string d in new[] { KokDizin, AppDizin })
                 {
-                    try { File.Delete(f); } catch { }
+                    if (!Directory.Exists(d)) continue;
+                    foreach (string f in Directory.GetFiles(d, "*.old", SearchOption.TopDirectoryOnly))
+                    {
+                        try { File.Delete(f); } catch { }
+                    }
+                }
+                // Yeni yerinde (app\) güncelleyici varsa kök klasörde kalan eskisini kaldır
+                if (File.Exists(GuncelleyiciYolu) && File.Exists(EskiGuncelleyiciYolu))
+                {
+                    try { File.Delete(EskiGuncelleyiciYolu); }
+                    catch { try { File.Move(EskiGuncelleyiciYolu, EskiGuncelleyiciYolu + "." + DateTime.Now.Ticks + ".old"); } catch { } }
                 }
             }
             catch { }

@@ -41,5 +41,7 @@ for ($i = 0; $i -lt $boyutlar.Count; $i++) {
     $ofset += $veri.Length
 }
 foreach ($veri in $resimler) { $bw.Write($veri) }
-[IO.File]::WriteAllBytes((Join-Path $PSScriptRoot 'ikon.ico'), $out.ToArray())
+[IO.File]::WriteAllBytes((Join-Path (Split-Path -Parent $PSScriptRoot) 'assets\ikon.ico'), $out.ToArray())
+# README için 256 px PNG
+[IO.File]::WriteAllBytes((Join-Path (Split-Path -Parent $PSScriptRoot) 'docs\ikon.png'), $resimler[$boyutlar.Count - 1])
 Write-Host "ikon.ico oluşturuldu"
