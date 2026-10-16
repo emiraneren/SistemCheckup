@@ -1,12 +1,30 @@
 {
-    "surum":  "1.3.1",
-    "etiket":  "v1.3.1",
+    "surum":  "1.4.0",
+    "etiket":  "v1.4.0",
     "tarih":  "2026-10-16",
     "notlar":  [
-                   "Düzeltme: NVIDIA ekran kartı olmayan bilgisayarlarda tarama \"Parametre hatalı / The parameter is incorrect\" hatasıyla duruyordu",
-                   "Bir kontrol beklenmedik şekilde başarısız olursa artık tarama durmuyor; o kontrol atlanıp raporda belirtiliyor"
+                   "Ekran kartı sıcaklığı artık AMD ve Intel kartlarda da (dizüstü tümleşik grafik dahil) okunuyor",
+                   "GTX 10/900 ve daha eski NVIDIA kartlarda yanlış \"güncelleme var\" uyarısı düzeltildi; bu kartlar için doğru sürücü serisi öneriliyor",
+                   "Sağlık bilgisi vermeyen USB bellek / RAID diskler artık \"arıza\" olarak gösterilmiyor; sanal diskler test edilmiyor",
+                   "Bir programın kurduğu sanal aygıtlar (sanal ses kablosu, VPN vb.) donanım arızası sayılmıyor",
+                   "Dizüstü: dahili ekran tanınıyor, pildeyken düşük yenileme hızı yanlış uyarı vermiyor; masaüstündeki UPS pil sanılmıyor",
+                   "Windows Update takılırsa tarama donmuyor (2,5 dakika sınırı); başka antivirüs kullananlarda antivirüs adı gösteriliyor",
+                   "Uygulama hatalarında anlaşılır mesaj ve hata günlüğü; korumalı klasörde veya antivirüs engelinde ne yapılacağı söyleniyor"
                ],
     "gecmis":  [
+                   {
+                       "surum":  "1.4.0",
+                       "tarih":  "2026-10-16",
+                       "notlar":  [
+                                      "Ekran kartı sıcaklığı artık AMD ve Intel kartlarda da (dizüstü tümleşik grafik dahil) okunuyor",
+                                      "GTX 10/900 ve daha eski NVIDIA kartlarda yanlış \"güncelleme var\" uyarısı düzeltildi; bu kartlar için doğru sürücü serisi öneriliyor",
+                                      "Sağlık bilgisi vermeyen USB bellek / RAID diskler artık \"arıza\" olarak gösterilmiyor; sanal diskler test edilmiyor",
+                                      "Bir programın kurduğu sanal aygıtlar (sanal ses kablosu, VPN vb.) donanım arızası sayılmıyor",
+                                      "Dizüstü: dahili ekran tanınıyor, pildeyken düşük yenileme hızı yanlış uyarı vermiyor; masaüstündeki UPS pil sanılmıyor",
+                                      "Windows Update takılırsa tarama donmuyor (2,5 dakika sınırı); başka antivirüs kullananlarda antivirüs adı gösteriliyor",
+                                      "Uygulama hatalarında anlaşılır mesaj ve hata günlüğü; korumalı klasörde veya antivirüs engelinde ne yapılacağı söyleniyor"
+                                  ]
+                   },
                    {
                        "surum":  "1.3.1",
                        "tarih":  "2026-10-16",
@@ -83,20 +101,20 @@
                    }
                ],
     "paket":  {
-                  "ad":  "SistemCheckup-v1.3.1.zip",
-                  "sha256":  "4e7a09ea085b35729e4c010469a19f8eb6930d1491d21bccf939643b31e08ad0",
-                  "boyut":  178773
+                  "ad":  "SistemCheckup-v1.4.0.zip",
+                  "sha256":  "b2e037b051de3a56f4f3843189acceae6c0ad004f044b078868ae2df8ec47233",
+                  "boyut":  185801
               },
     "dosyalar":  [
                      {
                          "hedef":  "app/Guncelleyici.exe",
-                         "sha256":  "4d96d23dae101f07a8fe68e4887325d6822e071cd72f9993657bbc93cf638ff6",
+                         "sha256":  "24fda7b39c32a15f1305be2c96d61f281d523a13a8c2bd152ef2f4739ad7bd6c",
                          "boyut":  54784
                      },
                      {
                          "hedef":  "app/rapor_sablon.html",
-                         "sha256":  "0a5d65c56609f100358e20a6b9d2d6679fb4716d9258a376853752d680a50856",
-                         "boyut":  41917
+                         "sha256":  "b0cc3b27f23bdaf4c1b60965df6af26646e8966d93511d54a0ecd8f9fd604c73",
+                         "boyut":  42547
                      },
                      {
                          "hedef":  "app/SCBench.cs",
@@ -105,13 +123,13 @@
                      },
                      {
                          "hedef":  "app/SCEkran.cs",
-                         "sha256":  "c2b66504b27984a625eaac3d4e05accf58b85b37200a5e0b54cdf9adef9b6a2b",
-                         "boyut":  3827
+                         "sha256":  "3bc827ab83c0ba2704f9658cbec4b87a47a6e060072c398ced0e2c3c3a30f631",
+                         "boyut":  8445
                      },
                      {
                          "hedef":  "app/SistemCheckup.ps1",
-                         "sha256":  "d2971b46cad9712f62d76c80214f2ccebe41278adef65f20653af86812a55cba",
-                         "boyut":  74994
+                         "sha256":  "bb737b1f61f4ade721f68648fb4d8718e42b32a709ca069673fd6c23b560cd56",
+                         "boyut":  87585
                      },
                      {
                          "hedef":  "BENIOKU.txt",
@@ -120,13 +138,13 @@
                      },
                      {
                          "hedef":  "Kaldir.exe",
-                         "sha256":  "c70ced71e035e7a8e9806d33b99023b9aad53767b985917006bb4985bbd0c335",
+                         "sha256":  "68afae42df2e6f026fa2df7b2e597cce6d6c0f6f4e88685b986c89877f8acf49",
                          "boyut":  37888
                      },
                      {
                          "hedef":  "SistemCheckup.exe",
-                         "sha256":  "9a38523c0ba4cba550b2437f55f3111b865f6c99610f42b45ca6af630f7e003f",
-                         "boyut":  142848
+                         "sha256":  "6326363e7a7c2a215572fef40ebfd104c08255c81af5dbcda1dfc2ac23601103",
+                         "boyut":  145920
                      }
                  ]
 }

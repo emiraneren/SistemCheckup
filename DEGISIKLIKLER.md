@@ -1,5 +1,15 @@
 # Değişiklikler
 
+## 1.4.0 — 2026-10-16
+
+- Ekran kartı sıcaklığı artık AMD ve Intel kartlarda da (dizüstü tümleşik grafik dahil) okunuyor
+- GTX 10/900 ve daha eski NVIDIA kartlarda yanlış "güncelleme var" uyarısı düzeltildi; bu kartlar için doğru sürücü serisi öneriliyor
+- Sağlık bilgisi vermeyen USB bellek / RAID diskler artık "arıza" olarak gösterilmiyor; sanal diskler test edilmiyor
+- Bir programın kurduğu sanal aygıtlar (sanal ses kablosu, VPN vb.) donanım arızası sayılmıyor
+- Dizüstü: dahili ekran tanınıyor, pildeyken düşük yenileme hızı yanlış uyarı vermiyor; masaüstündeki UPS pil sanılmıyor
+- Windows Update takılırsa tarama donmuyor (2,5 dakika sınırı); başka antivirüs kullananlarda antivirüs adı gösteriliyor
+- Uygulama hatalarında anlaşılır mesaj ve hata günlüğü; korumalı klasörde veya antivirüs engelinde ne yapılacağı söyleniyor
+
 ## 1.3.1 — 2026-10-16
 
 - Düzeltme: NVIDIA ekran kartı olmayan bilgisayarlarda tarama "Parametre hatalı / The parameter is incorrect" hatasıyla duruyordu

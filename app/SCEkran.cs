@@ -2,6 +2,90 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
+// Sistem Checkup: ekran kartı sıcaklığı / fan / bellek frekansı. Görev Yöneticisi'nin kullandığı
+// Windows grafik arayüzünden (D3DKMT) okunur; NVIDIA, AMD ve Intel kartların hepsinde çalışır
+// (sürücü WDDM 2.4+ destekliyorsa). Desteklenmeyen kartlarda 0 döner.
+public static class SCGpu
+{
+    [StructLayout(LayoutKind.Sequential)] struct LUID { public uint Low; public int High; }
+    [StructLayout(LayoutKind.Sequential)] struct ADAPTERINFO { public uint hAdapter; public LUID AdapterLuid; public uint NumOfSources; public int bPrecisePresentRegionsPreferred; }
+    [StructLayout(LayoutKind.Sequential)] struct ENUMADAPTERS2 { public uint NumAdapters; public IntPtr pAdapters; }
+    [StructLayout(LayoutKind.Sequential)] struct QUERYADAPTERINFO { public uint hAdapter; public int Type; public IntPtr pPrivateDriverData; public uint PrivateDriverDataSize; }
+    [StructLayout(LayoutKind.Sequential)] struct CLOSEADAPTER { public uint hAdapter; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct ADAPTER_PERFDATA
+    {
+        public uint PhysicalAdapterIndex;
+        public ulong MemoryFrequency, MaxMemoryFrequency, MaxMemoryFrequencyOC, MemoryBandwidth, PCIEBandwidth;
+        public uint FanRPM, Power, Temperature;
+        public byte PowerStateOverride;
+    }
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    struct ADAPTERREGISTRYINFO
+    {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string AdapterString;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string BiosString;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string DacType;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string ChipType;
+    }
+
+    [DllImport("gdi32.dll")] static extern int D3DKMTEnumAdapters2(ref ENUMADAPTERS2 e);
+    [DllImport("gdi32.dll")] static extern int D3DKMTQueryAdapterInfo(ref QUERYADAPTERINFO q);
+    [DllImport("gdi32.dll")] static extern int D3DKMTCloseAdapter(ref CLOSEADAPTER c);
+
+    const int KMTQAITYPE_ADAPTERREGISTRYINFO = 8, KMTQAITYPE_ADAPTERPERFDATA = 62;
+
+    static bool Sorgula<T>(uint h, int tur, ref T veri) where T : struct
+    {
+        int boyut = Marshal.SizeOf(typeof(T));
+        IntPtr p = Marshal.AllocHGlobal(boyut);
+        try
+        {
+            Marshal.StructureToPtr(veri, p, false);
+            QUERYADAPTERINFO q = new QUERYADAPTERINFO { hAdapter = h, Type = tur, pPrivateDriverData = p, PrivateDriverDataSize = (uint)boyut };
+            if (D3DKMTQueryAdapterInfo(ref q) != 0) return false;
+            veri = (T)Marshal.PtrToStructure(p, typeof(T));
+            return true;
+        }
+        finally { Marshal.FreeHGlobal(p); }
+    }
+
+    // Her ekran kartı için: ad|sicaklikC|fanRPM|bellekMHz   (desteklenmeyen değerler 0)
+    public static string[] Listele()
+    {
+        List<string> sonuc = new List<string>();
+        ENUMADAPTERS2 e = new ENUMADAPTERS2();
+        if (D3DKMTEnumAdapters2(ref e) != 0 || e.NumAdapters == 0) return sonuc.ToArray();
+        int boyut = Marshal.SizeOf(typeof(ADAPTERINFO));
+        e.pAdapters = Marshal.AllocHGlobal(boyut * (int)e.NumAdapters);
+        try
+        {
+            if (D3DKMTEnumAdapters2(ref e) != 0) return sonuc.ToArray();
+            for (int i = 0; i < e.NumAdapters; i++)
+            {
+                ADAPTERINFO a = (ADAPTERINFO)Marshal.PtrToStructure(new IntPtr(e.pAdapters.ToInt64() + (long)i * boyut), typeof(ADAPTERINFO));
+                try
+                {
+                    ADAPTERREGISTRYINFO kayit = new ADAPTERREGISTRYINFO();
+                    string ad = Sorgula(a.hAdapter, KMTQAITYPE_ADAPTERREGISTRYINFO, ref kayit) ? (kayit.AdapterString ?? "") : "";
+                    ADAPTER_PERFDATA perf = new ADAPTER_PERFDATA();
+                    double sicaklik = 0; uint fan = 0; ulong bellek = 0;
+                    if (Sorgula(a.hAdapter, KMTQAITYPE_ADAPTERPERFDATA, ref perf))
+                    {
+                        if (perf.Temperature > 0 && perf.Temperature < 1500) sicaklik = perf.Temperature / 10.0;
+                        fan = perf.FanRPM;
+                        bellek = perf.MemoryFrequency / 1000000;
+                    }
+                    if (ad.Length > 0) sonuc.Add(ad + "|" + sicaklik.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + fan + "|" + bellek);
+                }
+                finally { CLOSEADAPTER c = new CLOSEADAPTER { hAdapter = a.hAdapter }; D3DKMTCloseAdapter(ref c); }
+            }
+        }
+        finally { Marshal.FreeHGlobal(e.pAdapters); }
+        return sonuc.ToArray();
+    }
+}
+
 // Sistem Checkup: bağlı monitörlerin çözünürlük / yenileme hızı bilgisi.
 public static class SCEkran
 {

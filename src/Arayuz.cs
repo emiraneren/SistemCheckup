@@ -26,6 +26,10 @@ namespace SistemCheckup
             Ortak.EskileriTemizle();
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            // Beklenmeyen bir hatada .NET'in teknik penceresi yerine anlaşılır bir mesaj göster ve günlüğe yaz
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            Application.ThreadException += (s, e) => HataGoster(e.Exception);
+            AppDomain.CurrentDomain.UnhandledException += (s, e) => HataGoster(e.ExceptionObject as Exception);
 
             if (Ortak.ZipIcindenCalisiyor())
             {
@@ -43,6 +47,22 @@ namespace SistemCheckup
                 return;
             }
             Application.Run(new AnaForm());
+        }
+
+        static void HataGoster(Exception ex)
+        {
+            string gunluk = null;
+            try
+            {
+                string dizin = Ortak.YazilabilirMi() ? Ortak.RaporDizin : Path.GetTempPath();
+                Directory.CreateDirectory(dizin);
+                gunluk = Path.Combine(dizin, "hata_gunlugu.txt");
+                File.AppendAllText(gunluk, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  Sürüm " + Ortak.YerelSurum() + "  Windows " + Environment.OSVersion.Version + "\r\n" + ex + "\r\n\r\n", Encoding.UTF8);
+            }
+            catch { }
+            MessageBox.Show("Beklenmeyen bir hata oluştu; Sistem Checkup çalışmaya devam edecek.\n\n" + (ex != null ? ex.Message : "") +
+                (gunluk != null ? "\n\nAyrıntılar şu dosyaya kaydedildi:\n" + gunluk + "\n\nSorun tekrar ederse bu dosyayla birlikte GitHub sayfasından bildirebilirsiniz." : ""),
+                Ortak.UygulamaAdi, MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
@@ -1231,11 +1251,21 @@ namespace SistemCheckup
             ayarlar.Kaydet();
             lblBaslangicHata.Text = "";
 
-            Directory.CreateDirectory(Ortak.RaporDizin);
-            ilerlemeYolu = Path.Combine(Ortak.RaporDizin, ".ilerleme.txt");
-            iptalYolu = Path.Combine(Ortak.RaporDizin, ".iptal");
-            try { File.Delete(ilerlemeYolu); File.Delete(iptalYolu); } catch { }
-            File.WriteAllText(ilerlemeYolu, "");
+            try
+            {
+                Directory.CreateDirectory(Ortak.RaporDizin);
+                ilerlemeYolu = Path.Combine(Ortak.RaporDizin, ".ilerleme.txt");
+                iptalYolu = Path.Combine(Ortak.RaporDizin, ".iptal");
+                try { File.Delete(ilerlemeYolu); File.Delete(iptalYolu); } catch { }
+                File.WriteAllText(ilerlemeYolu, "");
+            }
+            catch (Exception)
+            {
+                // Program Files gibi korumalı bir klasöre çıkarılmış olabilir
+                BaslangicMesaji("Sistem Checkup bulunduğu klasöre rapor kaydedemiyor (" + Ortak.KokDizin.TrimEnd('\\') + "). " +
+                    "Program klasörünü Belgeler, Masaüstü veya İndirilenler gibi bir yere taşıyıp oradan açın.", true);
+                return;
+            }
 
             string ps1 = Path.Combine(Ortak.AppDizin, "SistemCheckup.ps1");
             string arg = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + ps1 + "\" -YonetimsizCalis -Sessiz" +
@@ -1327,14 +1357,20 @@ namespace SistemCheckup
 
         void IlerlemeSonu()
         {
+            string tum = "";
             try
             {
-                string tum = File.ReadAllText(ilerlemeYolu, Encoding.UTF8);
+                tum = File.ReadAllText(ilerlemeYolu, Encoding.UTF8);
                 if (tum.Contains("\nBITTI|") || tum.StartsWith("BITTI|") || tum.Contains("\nIPTAL") || tum.Contains("\nHATA|")) return;
             }
             catch { }
             TaramaBitti();
-            BaslangicMesaji("Tarama beklenmedik şekilde durdu. Tekrar deneyin; sorun sürerse \"Yönetici izniyle tara\" seçeneğini kapatıp deneyin.", true);
+            if (!tum.Contains("BASLADI"))
+                // Betik hiç başlayamadı: genelde antivirüs veya şirket bilgisayarlarındaki betik engeli
+                BaslangicMesaji("Tarama başlatılamadı: Windows PowerShell betiği çalıştırılmadı. Antivirüs programınız Sistem Checkup'ı engellemiş olabilir " +
+                    "(app klasörünü antivirüste izin verilenlere ekleyin) ya da bu bilgisayarda betik çalıştırma yönetici tarafından kapatılmış olabilir (şirket bilgisayarları).", true);
+            else
+                BaslangicMesaji("Tarama beklenmedik şekilde durdu. Tekrar deneyin; sorun sürerse \"Yönetici izniyle tara\" seçeneğini kapatıp deneyin.", true);
             Git("tara");
         }
 
@@ -1544,7 +1580,9 @@ namespace SistemCheckup
             b.Ekle("BIOS", J.S(sis, "biosSurum") + "  (" + J.S(sis, "biosTarih") + ")");
             b.Ekle("Son Windows güncellemesi", J.S(sis, "sonWinGuncelleme"));
             object av = J.Al(sis, "antivirus");
-            if (av != null) b.Ekle("Antivirüs", (J.B(av, "gercekZamanli") ? "Windows Defender açık" : "Gerçek zamanlı koruma kapalı") + "  ·  tanımlar " + J.S(av, "imzaTarihi"));
+            if (av != null && J.S(av, "urun") != null) b.Ekle("Antivirüs", J.S(av, "urun"));
+            else if (av != null) b.Ekle("Antivirüs", (J.B(av, "gercekZamanli") ? "Windows Defender açık" : "Gerçek zamanlı koruma kapalı") + "  ·  tanımlar " + J.S(av, "imzaTarihi"));
+            if (J.B(sis, "ups")) b.Ekle("Güç", "UPS (kesintisiz güç kaynağı) bağlı");
             o.Add(b);
 
             BilgiKarti c = new BilgiKarti("İşlemci", null);
@@ -1566,6 +1604,8 @@ namespace SistemCheckup
                 object cn = J.Al(gpu, "canli");
                 g.Ekle("Sürücü", (cn != null ? J.S(cn, "surucu") + "  ·  " : "") + J.S(gpu, "surucu") + "  (" + J.S(gpu, "surucuTarih") + ")");
                 g.Ekle("Ekran modu", J.S(gpu, "cozunurluk") != null ? J.S(gpu, "cozunurluk") + " @ " + J.S(gpu, "yenileme") + " Hz" : null);
+                if (cn == null && J.D(gpu, "sicaklik").HasValue)
+                    g.Ekle("Tarama anında", J.S(gpu, "sicaklik") + " °C" + ((J.I(gpu, "fanRPM") ?? 0) > 0 ? "  ·  fan " + J.S(gpu, "fanRPM") + " RPM" : "") + ((J.I(gpu, "bellekMHz") ?? 0) > 0 ? "  ·  bellek " + J.S(gpu, "bellekMHz") + " MHz" : ""));
                 if (cn != null)
                 {
                     g.Ekle("En yüksek saat hızı", J.Sayi(J.D(cn, "maxSaatMHz"), 0) + " MHz");
@@ -1594,6 +1634,7 @@ namespace SistemCheckup
                 d.Ekle("Sağlık", J.S(disk, "saglik") == "Healthy" ? "Sağlıklı" : J.S(disk, "saglik"));
                 d.Ekle("Firmware", J.S(disk, "firmware"));
                 if (J.D(disk, "asinma").HasValue) d.Ekle("Ömür kullanımı", "%" + J.S(disk, "asinma"));
+                else if (J.B(disk, "asinmaBildirilmiyor")) d.Ekle("Ömür kullanımı", "bu disk Windows'a bildirmiyor");
                 if (J.D(disk, "sicaklik").HasValue) d.Ekle("Sıcaklık", J.S(disk, "sicaklik") + " °C");
                 if (J.D(disk, "calismaSaati").HasValue) d.Ekle("Çalışma süresi", J.Sayi(J.D(disk, "calismaSaati"), 0) + " saat");
                 d.Ekle("Bölümler", Liste(J.L(disk, "birimler"), x => J.S(x, "harf") + " " + J.S(x, "etiket") + "  ·  " + J.S(x, "bosGB") + " GB boş / " + J.S(x, "boyutGB") + " GB"));
@@ -1607,7 +1648,7 @@ namespace SistemCheckup
                 BilgiKarti mon = new BilgiKarti("Monitörler", null);
                 foreach (object m in J.L(ch, "monitorler"))
                 {
-                    mon.AraBaslik(J.S(m, "ad") + (J.I(m, "boyutInc").HasValue ? "  ·  " + J.S(m, "boyutInc") + " inç" : "") + (J.B(m, "birincil") ? "  ·  ana ekran" : ""));
+                    mon.AraBaslik(J.S(m, "ad") + (J.I(m, "boyutInc").HasValue ? "  ·  " + J.S(m, "boyutInc") + " inç" : "") + (J.B(m, "birincil") ? "  ·  ana ekran" : "") + (J.B(m, "dahili") ? "  ·  dizüstü ekranı" : ""));
                     mon.Ekle("Çözünürlük", J.S(m, "cozunurluk") + (J.S(m, "enYuksekCozunurluk") != J.S(m, "cozunurluk") ? "  (en yüksek " + J.S(m, "enYuksekCozunurluk") + ")" : ""));
                     int hz = J.I(m, "hz") ?? 0, maks = J.I(m, "maksHz") ?? 0;
                     mon.Ekle("Yenileme hızı", hz + " Hz" + (maks > hz + 5 ? "  ·  " + maks + " Hz destekliyor (ayarlardan yükseltilebilir)" : "  (bu çözünürlükte en yüksek)"));

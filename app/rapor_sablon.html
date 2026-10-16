@@ -285,7 +285,8 @@ function render() {
         ['Sürücü', `${esc(c.surucu)} <span class="muted">(${esc(g.surucu)}, ${esc(g.surucuTarih)})</span>`], ['VBIOS', esc(c.vbios)],
       ])}</div>`;
     } else {
-      h += kv([['VRAM', g.vramGB ? fmt(g.vramGB, 0) + ' GB' : '—'], ['Sürücü', `${esc(g.surucu)} (${esc(g.surucuTarih)})`]]);
+      h += kv([['VRAM', g.vramGB ? fmt(g.vramGB, 0) + ' GB' : '—'], ['Sürücü', `${esc(g.surucu)} (${esc(g.surucuTarih)})`],
+        ['Sıcaklık', g.sicaklik != null ? fmt(g.sicaklik) + ' °C' + (g.fanRPM ? ' · fan ' + fmt(g.fanRPM) + ' RPM' : '') : 'bu kartın sürücüsü bildirmiyor']]);
     }
     h += `</div>`;
   }
@@ -319,7 +320,7 @@ function render() {
       <div class="muted">${esc(d.tip)} · ${esc(d.arayuz)} · ${fmt(d.boyutGB)} GB · firmware ${esc(d.firmware)}</div></div>
       <span class="pill ${healthy ? 'ok' : 'bad'}">${healthy ? 'Sağlıklı' : esc(d.saglik)}</span></div>
       <div class="grid g4" style="margin-bottom:12px">
-        ${stat('Ömür kullanımı', d.asinma != null ? '%' + d.asinma : '—', '', d.asinma != null ? bar(d.asinma, d.asinma >= 90 ? 'bad' : d.asinma >= 70 ? 'warn' : '') : 'yönetici izni gerekli')}
+        ${stat('Ömür kullanımı', d.asinma != null ? '%' + d.asinma : '—', '', d.asinma != null ? bar(d.asinma, d.asinma >= 90 ? 'bad' : d.asinma >= 70 ? 'warn' : '') : (D.meta.yonetici ? 'bu disk bildirmiyor' : 'yönetici izni gerekli'))}
         ${stat('Sıcaklık', d.sicaklik != null ? fmt(d.sicaklik) : '—', d.sicaklik != null ? '°C' : '', d.maksSicaklik ? `en yüksek ${d.maksSicaklik} °C` : '')}
         ${stat('Çalışma süresi', d.calismaSaati != null ? fmt(d.calismaSaati) : '—', d.calismaSaati != null ? 'saat' : '')}
         ${stat('Hata', d.okumaHatasi != null ? fmt((d.okumaHatasi || 0) + (d.yazmaHatasi || 0)) : '—', '', 'düzeltilemeyen okuma/yazma')}
@@ -350,12 +351,13 @@ function render() {
   const nv = SR.nvidia;
   h += `<section id="suruculer"><h2>Sürücüler <small>${fmt(SR.toplam)} yüklü sürücü tarandı</small></h2>`;
   if (nv) {
-    const st = nv.guncel === true ? 'ok' : nv.guncel === false ? 'warn' : 'info';
+    const ozel = { kepler: 'Eski nesil kart (yeni sürücü çıkmıyor)', eski: 'Bu kart için son seri: 580', is: 'İş istasyonu kartı' }[nv.nesil];
+    const st = nv.guncel === true ? 'ok' : nv.guncel === false ? (nv.boyut === 'kucuk' ? 'info' : 'warn') : 'info';
     h += `<div class="card" style="margin-bottom:12px"><h3>NVIDIA ekran kartı sürücüsü</h3><div class="nvbox">
       <div><div class="label">Kurulu</div><div class="big">${esc(nv.kurulu)}</div></div><div class="arrow">→</div>
-      <div><div class="label">En son</div><div class="big">${esc(nv.enSon || '?')}</div>${nv.tarih ? `<div class="muted">${esc(nv.tarih)}</div>` : ''}</div>
+      <div><div class="label">${ozel ? 'Bu kart için' : 'En son'}</div><div class="big">${esc(ozel ? (nv.nesil === 'eski' ? '580 serisi' : '—') : (nv.enSon || '?'))}</div>${nv.tarih ? `<div class="muted">${esc(nv.tarih)}</div>` : ''}</div>
       <div style="flex:1"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill ${st}">${nv.guncel === true ? 'Güncel' : nv.guncel === false ? 'Güncelleme var' : 'Kontrol edilemedi'}</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill ${st}">${ozel ? ozel : nv.guncel === true ? 'Güncel' : nv.guncel === false ? (nv.boyut === 'kucuk' ? 'Küçük güncelleme var' : 'Büyük güncelleme var') : 'Kontrol edilemedi'}</span>
         ${nv.guncel === false && nv.indir ? link(nv.indir, 'Doğrudan indir (.exe)') : ''}${link(nv.detay, nv.guncel === false ? 'Sürüm sayfası' : 'Sürücü sayfası', 'btn ghost')}</div>
     </div></div>`;
   }
@@ -396,7 +398,7 @@ function render() {
     const bag = x => x.baglanti ? ` <span class="muted">· ${esc(x.baglanti)}</span>` : '';
     const box = (t, body) => `<div class="card"><div class="label" style="margin-bottom:6px">${esc(t)}</div>${body}</div>`;
     h += `<section id="cihazlar"><h2>Bağlı cihazlar</h2>
-      ${arr(CH.monitorler).map(m => `<div class="card" style="margin-bottom:12px"><div class="diskhead"><div><div class="hw-title">${esc(m.ad)}${m.boyutInc ? ` · ${m.boyutInc}"` : ''}</div><div class="muted">${m.birincil ? 'Ana ekran · ' : ''}${esc(m.ekranKarti)}${m.uretimYili ? ' · üretim ' + m.uretimYili : ''}</div></div>
+      ${arr(CH.monitorler).map(m => `<div class="card" style="margin-bottom:12px"><div class="diskhead"><div><div class="hw-title">${esc(m.ad)}${m.boyutInc ? ` · ${m.boyutInc}"` : ''}${m.dahili ? ' <span class="pill info">dizüstü ekranı</span>' : ''}</div><div class="muted">${m.birincil ? 'Ana ekran · ' : ''}${esc(m.ekranKarti)}${m.uretimYili ? ' · üretim ' + m.uretimYili : ''}</div></div>
         <span class="pill ${m.maksHz > m.hz + 5 ? 'warn' : 'ok'}">${m.hz} Hz${m.maksHz > m.hz + 5 ? ' · ' + m.maksHz + ' Hz destekliyor' : ''}</span></div>
         ${kv([['Çözünürlük', esc(m.cozunurluk) + (m.enYuksekCozunurluk && m.enYuksekCozunurluk !== m.cozunurluk ? ` <span class="muted">(en yüksek ${esc(m.enYuksekCozunurluk)})</span>` : '')], ['Yenileme hızı', `${m.hz} Hz <span class="muted">(bu çözünürlükte en fazla ${m.maksHz} Hz)</span>`], ['Renk derinliği', m.renkBit + ' bit']])}</div>`).join('')}
       <div class="grid g3">
