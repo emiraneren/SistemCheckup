@@ -198,6 +198,57 @@ if ($mp) {
     } elseif ($imzaYas -gt 7) {
         Bulgu 'warn' 'Güvenlik' "Antivirüs tanımları $imzaYas gündür güncellenmemiş" 'Windows Update çalıştırıldığında tanımlar kendiliğinden güncellenir.' 'windowsdefender:' 'Windows Güvenliği'
     }
+
+    # Defender'ın son 30 günde bulduğu tehditler (Windows Güvenliği > Koruma geçmişi ile aynı kaynak)
+    $siddetAdi = @{ 0 = 'Bilinmiyor'; 1 = 'Düşük'; 2 = 'Orta'; 4 = 'Yüksek'; 5 = 'Ciddi' }
+    $tehditler = @()
+    try {
+        $katalog = @{}
+        foreach ($t in @(Get-MpThreat -ErrorAction Stop)) { $katalog["$($t.ThreatID)"] = $t }
+        $sinir = (Get-Date).AddDays(-30)
+        $tespitler = @(Get-MpThreatDetection -ErrorAction Stop | Where-Object { $_.InitialDetectionTime -ge $sinir })
+        foreach ($grup in ($tespitler | Group-Object { "$($_.ThreatID)" })) {
+            $t = $katalog[$grup.Name]
+            $son = $grup.Group | Sort-Object InitialDetectionTime -Descending | Select-Object -First 1
+            $dosyalar = @($grup.Group | ForEach-Object { $_.Resources } | ForEach-Object { ("$_" -replace '^[a-z]+:_', '' -split '\|')[0] } | Where-Object { $_ -match '^[A-Za-z]:\\' } | Select-Object -Unique -First 3)
+            $ad = if ($t) { "$($t.ThreatName)" } else { "Tehdit $($grup.Name)" }
+            $siddet = if ($t) { [int]$t.SeverityID } else { 0 }
+            $izinli = [int]$son.ThreatStatusID -eq 5
+            $tehditler += [ordered]@{
+                ad = $ad; siddet = $siddetAdi[$siddet]; siddetNo = $siddet
+                tur = if ($ad -match '^PUA|^PUADlManager') { 'İstenmeyen olabilecek uygulama' } elseif ($ad -match '^HackTool') { 'Hack aracı' } elseif ($ad -match '^Trojan|^Backdoor|^Ransom|^Worm|^Virus|^Spyware|^TrojanDownloader|^PWS') { 'Zararlı yazılım' } else { 'Tehdit' }
+                aktif = [bool]($t -and $t.IsActive); calisti = [bool]($t -and $t.DidThreatExecute); izinli = $izinli
+                son = $son.InitialDetectionTime.ToString('yyyy-MM-dd HH:mm'); adet = $grup.Count; dosyalar = $dosyalar
+            }
+        }
+        $tehditler = @($tehditler | Sort-Object { $_.son } -Descending)
+    } catch { Bilgi "Virüs geçmişi okunamadı: $($_.Exception.Message)" }
+    $sistem.antivirus.tehditler = $tehditler
+    $sistem.antivirus.hizliTaramaGun = if ($mp.QuickScanAge -lt 100000) { [int]$mp.QuickScanAge } else { $null }
+
+    $satir = { param($x) "• $($x.ad) ($($x.tur), önem: $($x.siddet)) · $($x.son)" + $(if ($x.dosyalar.Count) { "`n   $($x.dosyalar -join "`n   ")" } else { '' }) }
+    $aktifler = @($tehditler | Where-Object { $_.aktif -and -not $_.izinli })
+    $ciddiler = @($tehditler | Where-Object { -not $_.aktif -and -not $_.izinli -and $_.siddetNo -ge 4 })
+    $digerleri = @($tehditler | Where-Object { -not $_.aktif -and -not $_.izinli -and $_.siddetNo -lt 4 })
+    $izinliler = @($tehditler | Where-Object { $_.izinli })
+    if ($aktifler.Count) {
+        Bulgu 'bad' 'Güvenlik' "Bilgisayarda temizlenmemiş $($aktifler.Count) tehdit var" ("Windows Defender bu tehditleri buldu ama henüz etkisiz hale getiremedi$(if ($aktifler | Where-Object { $_.calisti }) { '; bazıları çalıştırılmış' }):`n" + (($aktifler | ForEach-Object { & $satir $_ }) -join "`n") + "`nWindows Güvenliği'ni açıp bu tehditler için 'Eylemleri başlat' deyin, ardından bir virüs taraması yapın.") 'windowsdefender://threat/' "Windows Güvenliği'ni aç"
+    }
+    if ($ciddiler.Count) {
+        Bulgu 'warn' 'Güvenlik' "Defender son 30 günde $($ciddiler.Count) ciddi tehdit yakaladı" ("Bunlar karantinaya alındı veya silindi, şu an zararsızlar:`n" + (($ciddiler | ForEach-Object { & $satir $_ }) -join "`n") + "`nBaşka bir dosyaya bulaşmadığından emin olmak için bir virüs taraması yapmanız önerilir (Yeni tarama sekmesi → Virüs taraması). Bu dosyaları güvenilir olmayan bir yerden indirdiyseniz tekrar açmayın.") 'windowsdefender://threat/' 'Koruma geçmişini aç'
+    }
+    if ($digerleri.Count) {
+        Bulgu 'info' 'Güvenlik' "Defender son 30 günde $($digerleri.Count) düşük önemli tehdit engelledi" ("Bunlar çoğunlukla istenmeyen reklam yazılımları veya oyun hilesi gibi araçlardır ve etkisiz hale getirildi:`n" + (($digerleri | ForEach-Object { & $satir $_ }) -join "`n")) 'windowsdefender://threat/' 'Koruma geçmişini aç'
+    }
+    if ($izinliler.Count) {
+        Bulgu 'info' 'Güvenlik' "$($izinliler.Count) tehdide izin vermişsiniz" ("Bunlar Defender'ın bulduğu ama sizin izin verdiğiniz dosyalardır; ne olduklarından eminseniz sorun yok:`n" + (($izinliler | ForEach-Object { & $satir $_ }) -join "`n")) 'windowsdefender://threat/' 'Koruma geçmişini aç'
+    }
+    if (-not $tehditler.Count -and $mp.RealTimeProtectionEnabled) {
+        Bulgu 'ok' 'Güvenlik' 'Son 30 günde virüs bulunmadı' 'Windows Defender açık ve son 30 günde hiçbir tehdit yakalamadı.'
+    }
+    if ($null -eq $sistem.antivirus.hizliTaramaGun -or $sistem.antivirus.hizliTaramaGun -gt 14) {
+        Bulgu 'info' 'Güvenlik' $(if ($null -eq $sistem.antivirus.hizliTaramaGun) { 'Hiç virüs taraması yapılmamış' } else { "Son virüs taraması $($sistem.antivirus.hizliTaramaGun) gün önce" }) 'Defender gerçek zamanlı olarak korur, ama ara sıra tarama yapmak gözden kaçanları da bulur. Yeni tarama sekmesindeki "Virüs taraması" butonunu kullanabilirsiniz.'
+    }
 }
 
 # ------------------------------------------------------------------ 2. pil (dizüstü)

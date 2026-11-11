@@ -1200,7 +1200,156 @@ namespace SistemCheckup
             butonSatiri.Controls.Add(btnBasla);
 
             lblBaslangicHata.Padding = new Padding(0, Tema.O(10), 0, 0);
-            Tema.Diz(sayfa, h1, alt, secimler, Tema.Bosluk(16), chkYonetici, yoneticiAcik, butonSatiri, lblBaslangicHata);
+            Tema.Diz(sayfa, h1, alt, secimler, Tema.Bosluk(16), chkYonetici, yoneticiAcik, butonSatiri, lblBaslangicHata, Tema.Bosluk(24), VirusKartiKur());
+        }
+
+        // ---------------------------------------------------------------- virüs taraması (Windows Defender)
+        Button btnVirus, btnVirusIptal, btnVirusGuvenlik;
+        readonly Yazi lblVirusDurum = new Yazi("", Tema.Kalin, Tema.Soluk);
+        readonly Yazi lblVirusSonuc = new Yazi("", Tema.Normal, Tema.Soluk);
+        readonly Timer virusZaman = new Timer { Interval = 1000 };
+        Process virusSurec;
+        DateTime virusBaslangic;
+        bool virusSuruyor, virusIptal;
+
+        static string DefenderYolu { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Windows Defender", "MpCmdRun.exe"); } }
+
+        Control VirusKartiKur()
+        {
+            Kart k = new Kart();
+            btnVirus = Buton("Hızlı virüs taraması yap", false, () => VirusTaramasi());
+            btnVirusIptal = Buton("Durdur", false, () => VirusDurdur());
+            btnVirusIptal.Visible = false;
+            btnVirusGuvenlik = Buton("Windows Güvenliği'ni aç", true, () => Ortak.Ac("windowsdefender://threat/", null));
+            btnVirusGuvenlik.Visible = false;
+            lblVirusDurum.Padding = new Padding(0, Tema.O(8), 0, 0);
+            k.Ekle(new Yazi("Virüs taraması", Tema.AltBaslik, Tema.Metin) { Padding = new Padding(0, 0, 0, Tema.O(4)) },
+                new Yazi("Windows'un kendi antivirüsü Windows Defender'a hızlı tarama yaptırır: virüslerin en sık bulunduğu yerler (çalışan programlar, başlangıç öğeleri, sistem klasörleri) taranır. " +
+                    "Genelde 2-10 dakika sürer; bu sırada bilgisayarınızı kullanabilirsiniz. Bulunan tehditleri Defender kendisi karantinaya alır. Sağlık taramasından ayrıdır.", Tema.Normal, Tema.Soluk) { Padding = new Padding(0, 0, 0, Tema.O(10)) },
+                ButonSatiri(btnVirus, btnVirusIptal, btnVirusGuvenlik), lblVirusDurum, lblVirusSonuc);
+            virusZaman.Tick += (s, e) =>
+            {
+                TimeSpan t = DateTime.Now - virusBaslangic;
+                lblVirusDurum.Text = string.Format("Taranıyor... {0}:{1:00}  ·  hızlı tarama genelde 2-10 dakika sürer", (int)t.TotalMinutes, t.Seconds);
+            };
+            return k;
+        }
+
+        void VirusMesaji(string durum, Color renk, string sonuc)
+        {
+            lblVirusDurum.ForeColor = renk;
+            lblVirusDurum.Text = durum;
+            lblVirusSonuc.Text = sonuc ?? "";
+        }
+
+        // PowerShell komutunu tırnak sorunu olmadan (EncodedCommand) çalıştırıp çıktısını döndürür
+        static Task<string> PowerShellCalistir(string komut, int zamanAsimiMs)
+        {
+            return Task.Run(() =>
+            {
+                string enc = Convert.ToBase64String(Encoding.Unicode.GetBytes("[Console]::OutputEncoding = [Text.Encoding]::UTF8; " + komut));
+                ProcessStartInfo psi = new ProcessStartInfo("powershell.exe", "-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand " + enc)
+                { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, StandardOutputEncoding = Encoding.UTF8 };
+                using (Process p = Process.Start(psi))
+                {
+                    Task<string> oku = p.StandardOutput.ReadToEndAsync();
+                    if (!p.WaitForExit(zamanAsimiMs)) { try { p.Kill(); } catch { } return ""; }
+                    return oku.Result;
+                }
+            });
+        }
+
+        async void VirusTaramasi()
+        {
+            if (virusSuruyor) return;
+            if (taramaSuruyor) { VirusMesaji("Sağlık taraması bitince virüs taramasını başlatabilirsiniz.", Tema.Kirmizi, null); return; }
+            btnVirusGuvenlik.Visible = false;
+            if (!File.Exists(DefenderYolu)) { VirusMesaji("Windows Defender bu bilgisayarda bulunamadı.", Tema.Kirmizi, "Taramayı kullandığınız antivirüs programından yapın."); return; }
+
+            btnVirus.Enabled = false;
+            VirusMesaji("Windows Defender hazırlanıyor...", Tema.Soluk, null);
+            string mod = (await PowerShellCalistir("(Get-MpComputerStatus).AMRunningMode", 30000)).Trim();
+            if (mod != "Normal")
+            {
+                btnVirus.Enabled = true;
+                object v = SonucuYukle();
+                string urun = J.S(J.Al(J.Al(v, "sistem"), "antivirus"), "urun");
+                VirusMesaji("Windows Defender şu an tarama yapamıyor.", Tema.Sari,
+                    (urun != null ? urun + " kullanıyorsunuz; " : "Başka bir antivirüs kullanıyor olabilirsiniz; ") + "virüs taramasını o programın kendisinden yapın.");
+                return;
+            }
+
+            virusSuruyor = true; virusIptal = false;
+            btnVirusIptal.Visible = true; btnVirusIptal.Enabled = true;
+            virusBaslangic = DateTime.Now;
+            VirusMesaji("Taranıyor... 0:00", Tema.Vurgu, "");
+            virusZaman.Start();
+            int kod = -1;
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo(DefenderYolu, "-Scan -ScanType 1") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+                virusSurec = Process.Start(psi);
+                Process sp = virusSurec;
+                kod = await Task.Run(() => { sp.StandardOutput.ReadToEnd(); sp.WaitForExit(); return sp.ExitCode; });
+            }
+            catch (Exception ex) { VirusMesaji("Tarama başlatılamadı: " + ex.Message, Tema.Kirmizi, null); }
+            virusZaman.Stop();
+            TimeSpan sure = DateTime.Now - virusBaslangic;
+            string sureMetni = string.Format("{0}:{1:00}", (int)sure.TotalMinutes, sure.Seconds);
+
+            if (virusIptal) { VirusMesaji("Virüs taraması durduruldu.", Tema.Soluk, null); VirusBitir(); return; }
+            if (kod == -1) { VirusBitir(); return; }
+
+            // Bu tarama sırasında bulunan tehditler
+            string komut = "$s = [datetime]::Parse('" + virusBaslangic.AddSeconds(-10).ToString("o") + "'); " +
+                "@(Get-MpThreatDetection | Where-Object { $_.InitialDetectionTime -ge $s } | ForEach-Object { $t = Get-MpThreat -ThreatID $_.ThreatID; " +
+                "[pscustomobject]@{ ad = \"$($t.ThreatName)\"; aktif = [bool]$t.IsActive; dosya = (\"$($_.Resources | Select-Object -First 1)\" -replace '^[a-z]+:_', '' -split '\\|')[0] } }) | ConvertTo-Json -Compress";
+            string json = (await PowerShellCalistir(komut, 60000)).Trim();
+            List<object> bulunan = new List<object>();
+            try
+            {
+                if (json.Length > 0)
+                {
+                    object o = new JavaScriptSerializer().DeserializeObject(json);
+                    if (o is IDictionary<string, object>) bulunan.Add(o); else if (o is object[]) bulunan.AddRange((object[])o);
+                }
+            }
+            catch { }
+
+            if (bulunan.Count == 0 && kod == 0)
+                VirusMesaji("✓ Tehdit bulunmadı  ·  süre " + sureMetni, Tema.Yesil, "Hızlı tarama temiz çıktı. Defender gerçek zamanlı korumayla bilgisayarınızı izlemeye devam ediyor.");
+            else if (bulunan.Count == 0)
+                VirusMesaji("Tarama tamamlandı  ·  süre " + sureMetni, Tema.Sari, "Defender taramayı bitirdi ama sonucu bildirmedi (kod " + kod + "). Ayrıntılar için Windows Güvenliği → Koruma geçmişi'ne bakın.");
+            else
+            {
+                bool aktifVar = bulunan.Any(b => J.B(b, "aktif"));
+                VirusMesaji((aktifVar ? "⚠ " : "") + bulunan.Count + " tehdit bulundu  ·  süre " + sureMetni, aktifVar ? Tema.Kirmizi : Tema.Sari,
+                    string.Join("\n", bulunan.Select(b => "• " + J.S(b, "ad") + (string.IsNullOrEmpty(J.S(b, "dosya")) ? "" : "  —  " + J.S(b, "dosya")) + (J.B(b, "aktif") ? "  (temizlenmedi)" : "  (karantinaya alındı)"))) +
+                    (aktifVar ? "\n\nWindows Güvenliği'ni açıp temizlenmeyen tehditler için \"Eylemleri başlat\" deyin." : "\n\nDefender bunları etkisiz hale getirdi. Bu dosyaları güvenilir olmayan bir yerden indirdiyseniz tekrar açmayın."));
+                btnVirusGuvenlik.Visible = true;
+            }
+            VirusBitir();
+        }
+
+        void VirusBitir()
+        {
+            virusSuruyor = false;
+            virusSurec = null;
+            btnVirus.Enabled = true;
+            btnVirusIptal.Visible = false;
+        }
+
+        void VirusDurdur()
+        {
+            if (!virusSuruyor) return;
+            virusIptal = true;
+            btnVirusIptal.Enabled = false;
+            lblVirusDurum.Text = "Durduruluyor...";
+            Task.Run(() =>
+            {
+                try { using (Process p = Process.Start(new ProcessStartInfo(DefenderYolu, "-Scan -Cancel") { UseShellExecute = false, CreateNoWindow = true })) p.WaitForExit(15000); } catch { }
+                try { Process sp = virusSurec; if (sp != null && !sp.HasExited) sp.Kill(); } catch { }
+            });
         }
 
         void BaslangicMesaji(string metin, bool hata)
@@ -1246,6 +1395,7 @@ namespace SistemCheckup
         void TaramaBaslat(bool yonetici)
         {
             if (temizlikSuruyor) { BaslangicMesaji("Temizlik bitince taramayı başlatabilirsiniz.", true); return; }
+            if (virusSuruyor) { BaslangicMesaji("Virüs taraması bitince sağlık taramasını başlatabilirsiniz.", true); return; }
             ayarlar.tamTarama = secTam.Secili;
             ayarlar.yoneticiIzni = chkYonetici.Checked;
             ayarlar.Kaydet();
@@ -1439,6 +1589,12 @@ namespace SistemCheckup
         void Kapaniyor(object s, FormClosingEventArgs e)
         {
             if (temizlikSuruyor) { e.Cancel = true; MessageBox.Show(this, "Temizlik bitene kadar bekleyin.", Ortak.UygulamaAdi); return; }
+            if (virusSuruyor)
+            {
+                if (MessageBox.Show(this, "Virüs taraması sürüyor. Kapatırsanız tarama durdurulacak.\n\nKapatılsın mı?", Ortak.UygulamaAdi,
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) { e.Cancel = true; return; }
+                VirusDurdur();
+            }
             if (!taramaSuruyor) return;
             if (MessageBox.Show(this, "Tarama sürüyor. Kapatırsanız tarama iptal edilecek.\n\nKapatılsın mı?", Ortak.UygulamaAdi,
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) { e.Cancel = true; return; }
@@ -1582,6 +1738,14 @@ namespace SistemCheckup
             object av = J.Al(sis, "antivirus");
             if (av != null && J.S(av, "urun") != null) b.Ekle("Antivirüs", J.S(av, "urun"));
             else if (av != null) b.Ekle("Antivirüs", (J.B(av, "gercekZamanli") ? "Windows Defender açık" : "Gerçek zamanlı koruma kapalı") + "  ·  tanımlar " + J.S(av, "imzaTarihi"));
+            if (av != null && J.S(av, "urun") == null)
+            {
+                List<object> th = J.L(av, "tehditler").ToList();
+                b.Ekle("Virüs geçmişi (30 gün)", th.Count == 0 ? "Tehdit bulunmadı" :
+                    Liste(th, x => J.S(x, "ad") + "  ·  " + J.S(x, "son") + (J.B(x, "aktif") ? "  ·  TEMİZLENMEDİ" : J.B(x, "izinli") ? "  ·  izin verildi" : "  ·  etkisiz hale getirildi")));
+                int? gun = J.I(av, "hizliTaramaGun");
+                b.Ekle("Son virüs taraması", gun.HasValue ? (gun == 0 ? "bugün" : gun + " gün önce") : "hiç yapılmamış");
+            }
             if (J.B(sis, "ups")) b.Ekle("Güç", "UPS (kesintisiz güç kaynağı) bağlı");
             o.Add(b);
 

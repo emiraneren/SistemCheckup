@@ -123,7 +123,7 @@ code { background: var(--panel2); border: 1px solid var(--line); border-radius: 
 <body>
 <nav><div class="wrap">
   <a href="#ozet">Özet</a><a href="#donanim">Donanım</a><a href="#islemci">İşlemci</a><a href="#ekran">Ekran Kartı</a>
-  <a href="#bellek">Bellek</a><a href="#depolama">Depolama</a><a href="#suruculer">Sürücüler</a><a href="#cihazlar">Cihazlar</a><a href="#kararlilik">Kararlılık</a><a href="#pil">Pil</a><a href="#nasil">Nasıl çalışıyor?</a>
+  <a href="#bellek">Bellek</a><a href="#depolama">Depolama</a><a href="#suruculer">Sürücüler</a><a href="#cihazlar">Cihazlar</a><a href="#guvenlik">Virüs</a><a href="#kararlilik">Kararlılık</a><a href="#pil">Pil</a><a href="#nasil">Nasıl çalışıyor?</a>
   <span class="sp"></span><button id="tema" type="button">Tema</button><button type="button" onclick="window.print()">Yazdır / PDF</button>
 </div></nav>
 <div class="wrap" id="app"></div>
@@ -414,6 +414,18 @@ function render() {
       </div></section>`;
   }
 
+  // ---------- security (Defender history)
+  const AV = S.antivirus;
+  if (AV && !AV.urun) {
+    const th = arr(AV.tehditler);
+    h += `<section id="guvenlik"><h2>Virüs geçmişi <small>Windows Defender · son 30 gün · son tarama ${AV.hizliTaramaGun != null ? (AV.hizliTaramaGun === 0 ? 'bugün' : AV.hizliTaramaGun + ' gün önce') : 'hiç yapılmamış'}</small></h2>
+      <div class="card tbl">${th.length ? `<table><thead><tr><th>Tehdit</th><th>Tür / önem</th><th>Tarih</th><th>Durum</th></tr></thead><tbody>${th.map(t => `<tr>
+        <td><b>${esc(t.ad)}</b>${arr(t.dosyalar).map(f => `<div class="muted" style="font-size:12px;overflow-wrap:anywhere">${esc(f)}</div>`).join('')}</td>
+        <td>${esc(t.tur)}<div class="muted" style="font-size:12px">önem: ${esc(t.siddet)}</div></td><td class="num">${esc(t.son)}</td>
+        <td>${t.aktif ? '<span class="pill bad">Temizlenmedi</span>' : t.izinli ? '<span class="pill info">İzin verildi</span>' : '<span class="pill ok">Etkisiz hale getirildi</span>'}</td></tr>`).join('')}</tbody></table>`
+        : '<div class="muted" style="padding:6px 4px">Son 30 günde tehdit bulunmadı.</div>'}</div></section>`;
+  }
+
   // ---------- stability
   const O = D.olaylar || {};
   const ev = (lbl, o, lvl, desc) => {
@@ -459,6 +471,7 @@ function render() {
     <br>Windows Ayarları'nı açan butonlarda (ör. "İsteğe bağlı güncellemeleri aç") tarayıcınız "Ayarlar açılsın mı?" diye sorabilir; "Aç" demeniz yeterlidir. Aynı butonlar Sistem Checkup penceresinde doğrudan çalışır.
     <br>İşlemci çekirdek sıcaklığını Windows doğrudan vermez; ayrıntılı sensör takibi için HWiNFO kullanabilirsiniz.</footer>`;
   if (!D.pil) document.querySelector('nav a[href="#pil"]')?.remove();
+  if (!(S.antivirus && !S.antivirus.urun)) document.querySelector('nav a[href="#guvenlik"]')?.remove();
 
   document.getElementById('app').innerHTML = h;
 }

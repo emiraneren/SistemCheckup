@@ -1,5 +1,12 @@
 # Değişiklikler
 
+## 1.5.0 — 2026-11-12
+
+- Yeni: Virüs taraması butonu (Yeni tarama sekmesi). Windows Defender ile hızlı tarama yapar, sonucu programda gösterir
+- Yeni: Her taramada Windows Defender'ın son 30 günde bulduğu tehditler listeleniyor: ne bulunduğu, hangi dosyada, temizlenip temizlenmediği
+- Temizlenmemiş bir tehdit varsa "Sorun" olarak gösteriliyor; ciddi tehditler yakalanmışsa virüs taraması öneriliyor
+- Başka bir antivirüs kullanılıyorsa taramanın o programdan yapılması gerektiği söyleniyor
+
 ## 1.4.0 — 2026-10-16
 
 - Ekran kartı sıcaklığı artık AMD ve Intel kartlarda da (dizüstü tümleşik grafik dahil) okunuyor
