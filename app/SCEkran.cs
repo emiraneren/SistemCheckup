@@ -51,7 +51,12 @@ public static class SCGpu
     }
 
     // Her ekran kartı için: ad|sicaklikC|fanRPM|bellekMHz   (desteklenmeyen değerler 0)
-    public static string[] Listele()
+    public static string[] Listele() { return Oku(false); }
+
+    // Canlı izleme için: luid|ad|sicaklikC|fanRPM|bellekMHz  (luid, Windows performans sayaçlarındaki biçimdedir)
+    public static string[] ListeleLuid() { return Oku(true); }
+
+    static string[] Oku(bool luidli)
     {
         List<string> sonuc = new List<string>();
         ENUMADAPTERS2 e = new ENUMADAPTERS2();
@@ -76,7 +81,8 @@ public static class SCGpu
                         fan = perf.FanRPM;
                         bellek = perf.MemoryFrequency / 1000000;
                     }
-                    if (ad.Length > 0) sonuc.Add(ad + "|" + sicaklik.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + fan + "|" + bellek);
+                    string luid = string.Format("luid_0x{0:X8}_0x{1:X8}", (uint)a.AdapterLuid.High, a.AdapterLuid.Low);
+                    if (ad.Length > 0) sonuc.Add((luidli ? luid + "|" : "") + ad + "|" + sicaklik.ToString(System.Globalization.CultureInfo.InvariantCulture) + "|" + fan + "|" + bellek);
                 }
                 finally { CLOSEADAPTER c = new CLOSEADAPTER { hAdapter = a.hAdapter }; D3DKMTCloseAdapter(ref c); }
             }

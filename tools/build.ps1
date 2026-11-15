@@ -41,7 +41,7 @@ function Derle($cikti, $baslik, [string[]]$kaynaklar, [string[]]$referanslar) {
     $argumanlar = @('/nologo', '/optimize+', '/codepage:65001', '/target:winexe', '/platform:anycpu',
         "/out:$(Join-Path $paket $cikti)", "/win32icon:$(Join-Path $kok 'assets\ikon.ico')", "/win32manifest:$(Join-Path $kok 'src\uygulama.manifest')")
     $argumanlar += @('System.Web.Extensions.dll', 'System.Windows.Forms.dll', 'System.Drawing.dll') + $referanslar | ForEach-Object { "/r:$_" }
-    $argumanlar += $kaynaklar | ForEach-Object { Join-Path $kok "src\$_" }
+    $argumanlar += $kaynaklar | ForEach-Object { if ([IO.Path]::IsPathRooted($_)) { $_ } else { Join-Path $kok "src\$_" } }
     $argumanlar += @((Join-Path $obj 'Ortak.cs'), (Join-Path $obj 'SurumBilgi.cs'), $bas)
     & $csc $argumanlar
     if ($LASTEXITCODE -ne 0) { throw "$cikti derlenemedi" }
@@ -49,7 +49,7 @@ function Derle($cikti, $baslik, [string[]]$kaynaklar, [string[]]$referanslar) {
 }
 
 Write-Host "Sistem Checkup $Surum derleniyor..." -ForegroundColor Cyan
-Derle 'SistemCheckup.exe' 'Sistem Checkup' @('Arayuz.cs', 'Temizlik.cs') @()
+Derle 'SistemCheckup.exe' 'Sistem Checkup' @('Arayuz.cs', 'Temizlik.cs', 'Izleme.cs', (Join-Path $kok 'app\SCEkran.cs')) @()
 Derle 'app\Guncelleyici.exe' 'Sistem Checkup Güncelleyici' @('Guncelleyici.cs') @('System.IO.Compression.dll', 'System.IO.Compression.FileSystem.dll')
 Derle 'Kaldir.exe' 'Sistem Checkup Kaldırıcı' @('Kaldir.cs') @()
 

@@ -1,5 +1,15 @@
 [
     {
+        "surum":  "1.6.0",
+        "tarih":  "2026-11-15",
+        "notlar":  [
+                       "Yeni: Canlı izleme sekmesi. İşlemci, ekran kartı, bellek, disk ve ağ kullanımı her saniye güncellenen grafiklerle gösteriliyor",
+                       "Ekran kartının kullanımı, sıcaklığı ve video belleği (NVIDIA kartlarda güç ve saat hızı da); her çekirdeğin ayrı kullanımı",
+                       "En çok işlemci ve bellek kullanan programlar listeleniyor",
+                       "Yeni: Karanlık mod. Üstteki \"Tema\" menüsünden Windows ile aynı, Açık veya Koyu seçilebilir"
+                   ]
+    },
+    {
         "surum":  "1.5.0",
         "tarih":  "2026-11-12",
         "notlar":  [

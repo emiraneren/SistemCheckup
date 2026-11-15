@@ -1,5 +1,12 @@
 # Değişiklikler
 
+## 1.6.0 — 2026-11-15
+
+- Yeni: Canlı izleme sekmesi. İşlemci, ekran kartı, bellek, disk ve ağ kullanımı her saniye güncellenen grafiklerle gösteriliyor
+- Ekran kartının kullanımı, sıcaklığı ve video belleği (NVIDIA kartlarda güç ve saat hızı da); her çekirdeğin ayrı kullanımı
+- En çok işlemci ve bellek kullanan programlar listeleniyor
+- Yeni: Karanlık mod. Üstteki "Tema" menüsünden Windows ile aynı, Açık veya Koyu seçilebilir
+
 ## 1.5.0 — 2026-11-12
 
 - Yeni: Virüs taraması butonu (Yeni tarama sekmesi). Windows Defender ile hızlı tarama yapar, sonucu programda gösterir

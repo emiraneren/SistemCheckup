@@ -50,8 +50,25 @@ namespace SistemCheckup
         public bool ilkKurulumTamam { get; set; }
         public bool yoneticiIzni { get; set; }
         public bool tamTarama { get; set; }
+        public string tema { get; set; }   // "sistem", "acik" veya "koyu"
 
-        public Ayarlar() { yoneticiIzni = true; tamTarama = true; }
+        public Ayarlar() { yoneticiIzni = true; tamTarama = true; tema = "sistem"; }
+
+        // Koyu tema mı? "sistem" seçiliyse Windows'un uygulama teması ayarına bakılır
+        public bool KoyuMu()
+        {
+            if (tema == "koyu") return true;
+            if (tema == "acik") return false;
+            try
+            {
+                using (Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+                {
+                    object v = k == null ? null : k.GetValue("AppsUseLightTheme");
+                    return v is int && (int)v == 0;
+                }
+            }
+            catch { return false; }
+        }
 
         static string Yol { get { return Path.Combine(Ortak.KokDizin, "ayarlar.json"); } }
 

@@ -1,14 +1,24 @@
 {
-    "surum":  "1.5.0",
-    "etiket":  "v1.5.0",
-    "tarih":  "2026-11-12",
+    "surum":  "1.6.0",
+    "etiket":  "v1.6.0",
+    "tarih":  "2026-11-15",
     "notlar":  [
-                   "Yeni: Virüs taraması butonu (Yeni tarama sekmesi). Windows Defender ile hızlı tarama yapar, sonucu programda gösterir",
-                   "Yeni: Her taramada Windows Defender\u0027ın son 30 günde bulduğu tehditler listeleniyor: ne bulunduğu, hangi dosyada, temizlenip temizlenmediği",
-                   "Temizlenmemiş bir tehdit varsa \"Sorun\" olarak gösteriliyor; ciddi tehditler yakalanmışsa virüs taraması öneriliyor",
-                   "Başka bir antivirüs kullanılıyorsa taramanın o programdan yapılması gerektiği söyleniyor"
+                   "Yeni: Canlı izleme sekmesi. İşlemci, ekran kartı, bellek, disk ve ağ kullanımı her saniye güncellenen grafiklerle gösteriliyor",
+                   "Ekran kartının kullanımı, sıcaklığı ve video belleği (NVIDIA kartlarda güç ve saat hızı da); her çekirdeğin ayrı kullanımı",
+                   "En çok işlemci ve bellek kullanan programlar listeleniyor",
+                   "Yeni: Karanlık mod. Üstteki \"Tema\" menüsünden Windows ile aynı, Açık veya Koyu seçilebilir"
                ],
     "gecmis":  [
+                   {
+                       "surum":  "1.6.0",
+                       "tarih":  "2026-11-15",
+                       "notlar":  [
+                                      "Yeni: Canlı izleme sekmesi. İşlemci, ekran kartı, bellek, disk ve ağ kullanımı her saniye güncellenen grafiklerle gösteriliyor",
+                                      "Ekran kartının kullanımı, sıcaklığı ve video belleği (NVIDIA kartlarda güç ve saat hızı da); her çekirdeğin ayrı kullanımı",
+                                      "En çok işlemci ve bellek kullanan programlar listeleniyor",
+                                      "Yeni: Karanlık mod. Üstteki \"Tema\" menüsünden Windows ile aynı, Açık veya Koyu seçilebilir"
+                                  ]
+                   },
                    {
                        "surum":  "1.5.0",
                        "tarih":  "2026-11-12",
@@ -108,15 +118,15 @@
                    }
                ],
     "paket":  {
-                  "ad":  "SistemCheckup-v1.5.0.zip",
-                  "sha256":  "d625d2d10bc4352ed0828597feb8d34d57a8b84c988a4d05b13e9c55cdae8a33",
-                  "boyut":  191902
+                  "ad":  "SistemCheckup-v1.6.0.zip",
+                  "sha256":  "380682cfcac9a100043daf9540accdd16dfae0ac487a475d60d4acccb4c73d3f",
+                  "boyut":  208816
               },
     "dosyalar":  [
                      {
                          "hedef":  "app/Guncelleyici.exe",
-                         "sha256":  "a684d8977da9bb8c6916c142bc68b0e0a42dae0fb3b6f191ab9e6df27a0e4ae2",
-                         "boyut":  54784
+                         "sha256":  "b5d9305511d1577ce7a29908df86d4feab28f566505ab4298d41f3383a8ccb4f",
+                         "boyut":  56832
                      },
                      {
                          "hedef":  "app/rapor_sablon.html",
@@ -130,8 +140,8 @@
                      },
                      {
                          "hedef":  "app/SCEkran.cs",
-                         "sha256":  "3bc827ab83c0ba2704f9658cbec4b87a47a6e060072c398ced0e2c3c3a30f631",
-                         "boyut":  8445
+                         "sha256":  "d570a69ef502635559f3de23188bec1a763e597583848abfeae4f0e9ea11aae5",
+                         "boyut":  8839
                      },
                      {
                          "hedef":  "app/SistemCheckup.ps1",
@@ -145,13 +155,13 @@
                      },
                      {
                          "hedef":  "Kaldir.exe",
-                         "sha256":  "970fba5f401c8cda6fdb40bca2872c6f0ca4d6fa25656187bbde3c5e8a31f300",
-                         "boyut":  37888
+                         "sha256":  "281e59483b6d9ce29d83e91004eca8c88cbece82d93abb15e0936372a0a925e6",
+                         "boyut":  38400
                      },
                      {
                          "hedef":  "SistemCheckup.exe",
-                         "sha256":  "201147f3e0a5105ac71122ddc018f3d0347b1611217e58cdf0feddb74c366b3d",
-                         "boyut":  156672
+                         "sha256":  "cfda84863d0066598f8898b3fdeb06a00f3a7dc07fa9ba6314243ef057558806",
+                         "boyut":  191488
                      }
                  ]
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -46,7 +46,15 @@ namespace SistemCheckup
                     Ortak.Ac(Ortak.GuncelleyiciYolu, "--otomatik");
                 return;
             }
-            Application.Run(new AnaForm());
+            // Tema değiştirilince pencere yeni renklerle yeniden kurulur
+            bool yeniden;
+            do
+            {
+                Tema.Uygula(Ayarlar.Yukle().KoyuMu());
+                AnaForm f = new AnaForm();
+                Application.Run(f);
+                yeniden = f.YenidenKur;
+            } while (yeniden);
         }
 
         static void HataGoster(Exception ex)
@@ -69,19 +77,53 @@ namespace SistemCheckup
     // ------------------------------------------------------------------ tema ve yardımcılar
     static class Tema
     {
-        public static readonly Color Arka = Color.FromArgb(244, 245, 247);
-        public static readonly Color Kart = Color.White;
-        public static readonly Color Kenar = Color.FromArgb(222, 226, 233);
-        public static readonly Color Metin = Color.FromArgb(22, 24, 29);
-        public static readonly Color Soluk = Color.FromArgb(100, 107, 120);
-        public static readonly Color Vurgu = Color.FromArgb(58, 91, 217);
-        public static readonly Color Yesil = Color.FromArgb(31, 138, 76);
-        public static readonly Color Sari = Color.FromArgb(178, 106, 0);
-        public static readonly Color Kirmizi = Color.FromArgb(198, 47, 47);
-        public static readonly Color Mavi = Color.FromArgb(47, 99, 184);
-        public static readonly Color Mor = Color.FromArgb(132, 72, 196);
-        public static readonly Color HalkaArka = Color.FromArgb(232, 235, 242);
-        public static readonly Color[] SeriRenkleri = { Vurgu, Color.FromArgb(214, 120, 30), Yesil, Mor, Kirmizi, Color.FromArgb(20, 150, 170) };
+        // Renkler açık / koyu temaya göre Uygula() ile ayarlanır (pencere oluşturulmadan önce)
+        public static bool Koyu;
+        public static Color Arka, Kart, Cerceve, Kenar, Metin, Soluk, SolukIkincil, Izgara, Vurgu, BaslikArka, Yesil, Sari, Kirmizi, Mavi, Mor, Turuncu,
+            HalkaArka, DugmeKenar, DugmeKapali, BantArka, BantYazi;
+        public static Color[] SeriRenkleri;
+
+        static Tema() { Uygula(false); }
+
+        public static void Uygula(bool koyu)
+        {
+            Koyu = koyu;
+            if (!koyu)
+            {
+                Arka = Color.FromArgb(244, 245, 247); Kart = Color.White; Cerceve = Color.White; Kenar = Color.FromArgb(222, 226, 233);
+                Metin = Color.FromArgb(22, 24, 29); Soluk = Color.FromArgb(100, 107, 120); SolukIkincil = Color.FromArgb(140, 146, 158); Izgara = Color.FromArgb(236, 238, 242);
+                Vurgu = Color.FromArgb(58, 91, 217); BaslikArka = Vurgu;
+                Yesil = Color.FromArgb(31, 138, 76); Sari = Color.FromArgb(178, 106, 0); Kirmizi = Color.FromArgb(198, 47, 47); Mavi = Color.FromArgb(47, 99, 184);
+                Mor = Color.FromArgb(132, 72, 196); Turuncu = Color.FromArgb(214, 120, 30);
+                HalkaArka = Color.FromArgb(232, 235, 242); DugmeKenar = Color.FromArgb(205, 209, 217); DugmeKapali = Color.FromArgb(178, 189, 232);
+                BantArka = Color.FromArgb(253, 241, 221); BantYazi = Color.FromArgb(110, 70, 0);
+            }
+            else
+            {
+                Arka = Color.FromArgb(15, 17, 21); Kart = Color.FromArgb(25, 28, 35); Cerceve = Color.FromArgb(21, 24, 30); Kenar = Color.FromArgb(44, 49, 60);
+                Metin = Color.FromArgb(232, 234, 239); Soluk = Color.FromArgb(150, 157, 171); SolukIkincil = Color.FromArgb(112, 119, 133); Izgara = Color.FromArgb(37, 41, 51);
+                Vurgu = Color.FromArgb(92, 124, 245); BaslikArka = Color.FromArgb(30, 36, 56);
+                Yesil = Color.FromArgb(76, 197, 132); Sari = Color.FromArgb(240, 176, 74); Kirmizi = Color.FromArgb(255, 107, 107); Mavi = Color.FromArgb(120, 166, 255);
+                Mor = Color.FromArgb(176, 128, 240); Turuncu = Color.FromArgb(240, 150, 70);
+                HalkaArka = Color.FromArgb(40, 45, 57); DugmeKenar = Color.FromArgb(58, 64, 78); DugmeKapali = Color.FromArgb(52, 62, 100);
+                BantArka = Color.FromArgb(52, 42, 20); BantYazi = Color.FromArgb(244, 200, 120);
+            }
+            SeriRenkleri = new[] { Vurgu, Turuncu, Yesil, Mor, Kirmizi, Color.FromArgb(20, 170, 190) };
+        }
+
+        // Pencere başlık çubuğunu ve kaydırma çubuklarını koyu yapar (Windows 10 2004+ / 11)
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr h, int a, ref int v, int s);
+        [System.Runtime.InteropServices.DllImport("uxtheme.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)] static extern int SetWindowTheme(IntPtr h, string a, string b);
+        public static void KoyuBaslik(Form f)
+        {
+            if (!Koyu) return;
+            try { int bir = 1; if (DwmSetWindowAttribute(f.Handle, 20, ref bir, 4) != 0) DwmSetWindowAttribute(f.Handle, 19, ref bir, 4); } catch { }
+        }
+        public static void KoyuKaydirma(Control c)
+        {
+            if (!Koyu) return;
+            try { if (c.IsHandleCreated) SetWindowTheme(c.Handle, "DarkMode_Explorer", null); else c.HandleCreated += (s, e) => SetWindowTheme(c.Handle, "DarkMode_Explorer", null); } catch { }
+        }
         public static readonly CultureInfo Tr = new CultureInfo("tr-TR");
 
         public static float Olcek = 1f;
@@ -124,15 +166,15 @@ namespace SistemCheckup
         {
             if (ana)
             {
-                b.BackColor = b.Enabled ? Vurgu : Color.FromArgb(178, 189, 232);
+                b.BackColor = b.Enabled ? Vurgu : DugmeKapali;
                 b.ForeColor = Color.White;
                 b.FlatAppearance.BorderColor = b.BackColor;
             }
             else
             {
-                b.BackColor = Color.White;
+                b.BackColor = Tema.Kart;
                 b.ForeColor = b.Enabled ? Metin : Soluk;
-                b.FlatAppearance.BorderColor = Color.FromArgb(205, 209, 217);
+                b.FlatAppearance.BorderColor = DugmeKenar;
             }
         }
 
@@ -486,7 +528,7 @@ namespace SistemCheckup
             }
             int d = Tema.O(18);
             Rectangle c = new Rectangle(Tema.O(16), Tema.O(18), d, d);
-            using (Pen kalem = new Pen(secili ? Tema.Vurgu : Color.FromArgb(160, 166, 178), Tema.O(2)))
+            using (Pen kalem = new Pen(secili ? Tema.Vurgu : Tema.SolukIkincil, Tema.O(2)))
                 g.DrawEllipse(kalem, c);
             if (secili)
             {
@@ -577,7 +619,7 @@ namespace SistemCheckup
             double min, max; Aralik(out min, out max);
             Func<double, int> Y = v => a.Bottom - (int)((v - min) / (max - min) * a.Height);
 
-            using (Pen izgara = new Pen(Color.FromArgb(236, 238, 242)))
+            using (Pen izgara = new Pen(Tema.Izgara))
             using (SolidBrush s = new SolidBrush(Tema.Soluk))
             using (StringFormat sag = new StringFormat { Alignment = StringAlignment.Far, LineAlignment = StringAlignment.Center })
             {
@@ -600,7 +642,7 @@ namespace SistemCheckup
             }
 
             if (secili >= 0)
-                using (Pen p = new Pen(Color.FromArgb(200, 205, 214)) { DashStyle = DashStyle.Dash })
+                using (Pen p = new Pen(Tema.Kenar) { DashStyle = DashStyle.Dash })
                     g.DrawLine(p, X(a, secili), a.Y, X(a, secili), a.Bottom);
 
             foreach (Seri sr in seriler)
@@ -635,7 +677,7 @@ namespace SistemCheckup
                 if (kx + sz.Width + Tema.O(16) > a.Right) kx = X(a, secili) - (int)sz.Width - Tema.O(26);
                 Rectangle kutu = new Rectangle(kx, ky, (int)sz.Width + Tema.O(16), (int)sz.Height + Tema.O(10));
                 using (GraphicsPath p = Tema.Yuvarlak(kutu, Tema.O(6)))
-                using (SolidBrush b = new SolidBrush(Color.FromArgb(250, 255, 255, 255)))
+                using (SolidBrush b = new SolidBrush(Tema.Kart))
                 using (Pen k = new Pen(Tema.Kenar))
                 { g.FillPath(b, p); g.DrawPath(k, p); }
                 using (SolidBrush s = new SolidBrush(Tema.Metin)) g.DrawString(metin, Tema.Kucuk, s, kx + Tema.O(8), ky + Tema.O(5));
@@ -672,9 +714,9 @@ namespace SistemCheckup
             Font = Tema.Kalin;
             TextAlign = ContentAlignment.MiddleCenter;
             Cursor = Cursors.Hand;
-            BackColor = Color.White;
+            BackColor = Tema.Cerceve;
             ForeColor = Tema.Soluk;
-            Width = TextRenderer.MeasureText(metin, Tema.Kalin).Width + Tema.O(28);
+            Width = TextRenderer.MeasureText(metin, Tema.Kalin).Width + Tema.O(22);
             Margin = new Padding(0);
         }
         public bool Aktif { get { return aktif; } set { aktif = value; ForeColor = value ? Tema.Vurgu : Tema.Soluk; Invalidate(); } }
@@ -778,7 +820,7 @@ namespace SistemCheckup
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false; MinimizeBox = false;
             StartPosition = FormStartPosition.CenterParent;
-            BackColor = Color.White;
+            BackColor = Tema.Kart;
             ClientSize = new Size(Tema.O(460), Tema.O(ilk ? 250 : 200));
             Padding = new Padding(Tema.O(20));
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
@@ -791,7 +833,7 @@ namespace SistemCheckup
 
             chkMasaustu.Text = "Masaüstüne kısayol ekle";
             chkBaslat.Text = "Başlat menüsüne ekle";
-            chkMasaustu.Height = chkBaslat.Height = Tema.O(28);
+            chkMasaustu.Height = chkBaslat.Height = Tema.O(28); chkMasaustu.ForeColor = chkBaslat.ForeColor = Tema.Metin;
             chkMasaustu.Checked = ilk || Ortak.BizimKisayolMu(Ortak.MasaustuKisayolu);
             chkBaslat.Checked = ilk || Ortak.BizimKisayolMu(Ortak.BaslatKisayolu);
 
@@ -809,6 +851,12 @@ namespace SistemCheckup
 
             Controls.Add(alt);
             Tema.Diz(this, baslik, aciklama, chkMasaustu, chkBaslat);
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            Tema.KoyuBaslik(this);
         }
 
         void Uygula()
@@ -892,10 +940,11 @@ namespace SistemCheckup
             StartPosition = FormStartPosition.CenterScreen;
             try { Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath); } catch { }
 
-            foreach (string ad in new[] { "ana", "tara", "ilerleme", "sonuc", "bilgi", "temizlik", "nasil" })
+            foreach (string ad in new[] { "ana", "tara", "ilerleme", "sonuc", "izleme", "bilgi", "temizlik", "nasil" })
             {
                 Panel p = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Visible = false, BackColor = Tema.Arka };
                 p.Padding = new Padding(Tema.O(32), Tema.O(22), Tema.O(32), Tema.O(24));
+                Tema.KoyuKaydirma(p);
                 sayfalar[ad] = p;
                 Controls.Add(p);
             }
@@ -936,7 +985,10 @@ namespace SistemCheckup
                 case "sonuc": SonuclariKur(); break;
                 case "bilgi": BilgiKur(); break;
                 case "temizlik": TemizlikKur(); break;
+                case "izleme": IzlemeKur(); break;
             }
+            // Canlı ölçüm yalnızca sekme açıkken çalışır
+            if (izlemeZaman != null) { if (ad == "izleme") { izlemeZaman.Start(); IzlemeTick(); } else izlemeZaman.Stop(); }
             aktifSayfa = ad;
             foreach (KeyValuePair<string, Panel> kv in sayfalar) kv.Value.Visible = kv.Key == ad;
             sayfalar[ad].BringToFront();
@@ -971,20 +1023,52 @@ namespace SistemCheckup
         // ---------------------------------------------------------------- çerçeve
         Control UstKur()
         {
-            Panel ust = new Panel { Dock = DockStyle.Top, Height = Tema.O(54), BackColor = Tema.Vurgu, Padding = new Padding(Tema.O(28), 0, Tema.O(24), 0) };
+            Panel ust = new Panel { Dock = DockStyle.Top, Height = Tema.O(54), BackColor = Tema.BaslikArka, Padding = new Padding(Tema.O(28), 0, Tema.O(24), 0) };
             Label ad = new Label { Text = "Sistem Checkup", ForeColor = Color.White, Font = new Font("Segoe UI Semibold", 15f), AutoSize = false, Dock = DockStyle.Fill, TextAlign = ContentAlignment.MiddleLeft };
             LinkLabel denetle = new LinkLabel { Text = "Güncellemeleri denetle", AutoSize = false, Dock = DockStyle.Right, Width = Tema.O(190), TextAlign = ContentAlignment.MiddleRight, LinkColor = Color.White, ActiveLinkColor = Color.White, LinkBehavior = LinkBehavior.HoverUnderline };
             denetle.LinkClicked += (s, e) => GuncelleyiciAc(false);
+
+            // Tema seçimi: Sistem ile aynı / Açık / Koyu
+            LinkLabel tema = new LinkLabel { Text = (Tema.Koyu ? "☾" : "☀") + "  Tema ▾", AutoSize = false, Dock = DockStyle.Right, Width = Tema.O(110), TextAlign = ContentAlignment.MiddleRight, LinkColor = Color.White, ActiveLinkColor = Color.White, LinkBehavior = LinkBehavior.HoverUnderline };
+            ContextMenuStrip menu = new ContextMenuStrip();
+            foreach (string[] t in new[] { new[] { "sistem", "Windows ile aynı" }, new[] { "acik", "Açık" }, new[] { "koyu", "Koyu" } })
+            {
+                string deger = t[0];
+                ToolStripMenuItem oge = new ToolStripMenuItem(t[1]) { Checked = (ayarlar.tema ?? "sistem") == deger };
+                oge.Click += (s, e) => TemaSec(deger);
+                menu.Items.Add(oge);
+            }
+            tema.LinkClicked += (s, e) => menu.Show(tema, new Point(tema.Width - menu.PreferredSize.Width, tema.Height));
+
             ust.Controls.Add(ad);
             ust.Controls.Add(denetle);
+            ust.Controls.Add(tema);
             return ust;
+        }
+
+        public bool YenidenKur;
+
+        void TemaSec(string deger)
+        {
+            if (taramaSuruyor || temizlikSuruyor || virusSuruyor) { MessageBox.Show(this, "Lütfen önce devam eden işlemin bitmesini bekleyin.", Ortak.UygulamaAdi); return; }
+            ayarlar.tema = deger;
+            ayarlar.Kaydet();
+            if (new Ayarlar { tema = deger }.KoyuMu() == Tema.Koyu) return; // görünüm değişmiyor
+            YenidenKur = true;
+            Close();
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            Tema.KoyuBaslik(this);
         }
 
         Control SekmeKur()
         {
-            FlowLayoutPanel cubuk = new FlowLayoutPanel { Dock = DockStyle.Top, Height = Tema.O(44), BackColor = Color.White, Padding = new Padding(Tema.O(18), 0, Tema.O(18), 0), WrapContents = false };
+            FlowLayoutPanel cubuk = new FlowLayoutPanel { Dock = DockStyle.Top, Height = Tema.O(44), BackColor = Tema.Cerceve, Padding = new Padding(Tema.O(18), 0, Tema.O(18), 0), WrapContents = false };
             cubuk.Paint += (s, e) => { using (Pen p = new Pen(Tema.Kenar)) e.Graphics.DrawLine(p, 0, cubuk.Height - 1, cubuk.Width, cubuk.Height - 1); };
-            foreach (string[] t in new[] { new[] { "ana", "Ana sayfa" }, new[] { "tara", "Yeni tarama" }, new[] { "sonuc", "Son sonuç" }, new[] { "bilgi", "Sistem bilgileri" }, new[] { "temizlik", "Temizlik" }, new[] { "nasil", "Nasıl çalışıyor?" } })
+            foreach (string[] t in new[] { new[] { "ana", "Ana sayfa" }, new[] { "tara", "Yeni tarama" }, new[] { "sonuc", "Son sonuç" }, new[] { "izleme", "Canlı izleme" }, new[] { "bilgi", "Sistem bilgileri" }, new[] { "temizlik", "Temizlik" }, new[] { "nasil", "Nasıl çalışıyor?" } })
             {
                 Sekme s = new Sekme(t[1]) { Height = Tema.O(44) };
                 string ad = t[0];
@@ -1003,13 +1087,13 @@ namespace SistemCheckup
             bant.Dock = DockStyle.Top;
             bant.Padding = new Padding(Tema.O(28), Tema.O(7), Tema.O(24), Tema.O(7));
             bant.Height = b.PreferredSize.Height + bant.Padding.Vertical;
-            bant.BackColor = Color.FromArgb(253, 241, 221);
+            bant.BackColor = Tema.BantArka;
             bant.Visible = false;
             lblBant.Dock = DockStyle.Fill;
             lblBant.TextAlign = ContentAlignment.MiddleLeft;
             lblBant.AutoEllipsis = true;
             lblBant.Padding = new Padding(0, 0, Tema.O(12), 0);
-            lblBant.ForeColor = Color.FromArgb(110, 70, 0);
+            lblBant.ForeColor = Tema.BantYazi;
             lblBant.Font = Tema.Kalin;
             bant.Controls.Add(lblBant);
             bant.Controls.Add(b);
@@ -1018,7 +1102,7 @@ namespace SistemCheckup
 
         Control AltKur()
         {
-            FlowLayoutPanel alt = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = Tema.O(38), BackColor = Color.White, Padding = new Padding(Tema.O(24), Tema.O(9), Tema.O(24), 0) };
+            FlowLayoutPanel alt = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = Tema.O(38), BackColor = Tema.Cerceve, Padding = new Padding(Tema.O(24), Tema.O(9), Tema.O(24), 0) };
             alt.Paint += (s, e) => { using (Pen p = new Pen(Tema.Kenar)) e.Graphics.DrawLine(p, 0, 0, alt.Width, 0); };
             Action<string, Action> link = (metin, is_) =>
             {
@@ -1186,7 +1270,7 @@ namespace SistemCheckup
             secimler.SizeChanged += yukseklik;
 
             chkYonetici.Text = "Yönetici izniyle tara (önerilir)";
-            chkYonetici.Font = Tema.Kalin;
+            chkYonetici.Font = Tema.Kalin; chkYonetici.ForeColor = Tema.Metin;
             chkYonetici.Checked = ayarlar.yoneticiIzni;
             chkYonetici.Height = Tema.O(30);
             Yazi yoneticiAcik = new Yazi("SSD'nin kalan ömrü, disk sıcaklığı ve çalışma saati yalnızca yönetici izniyle okunabilir. Taramayı başlattığınızda Windows \"Bu uygulamanın cihazınızda değişiklik yapmasına izin vermek istiyor musunuz?\" diye sorar. Sistem Checkup yalnızca bilgi okur, hiçbir ayarı değiştirmez. \"Hayır\" derseniz tarama bu bilgiler olmadan devam eder.", Tema.Normal, Tema.Soluk);
@@ -1369,11 +1453,12 @@ namespace SistemCheckup
             bar.Maximum = 1000;
             lstKayit.Dock = DockStyle.Fill;
             lstKayit.BorderStyle = BorderStyle.None;
-            lstKayit.BackColor = Color.White;
+            lstKayit.BackColor = Tema.Kart;
             lstKayit.ForeColor = Tema.Soluk;
             lstKayit.IntegralHeight = false;
             lstKayit.SelectionMode = SelectionMode.None;
-            Panel kayitKap = new Panel { Dock = DockStyle.Fill, BackColor = Color.White, Padding = new Padding(Tema.O(12)) };
+            Tema.KoyuKaydirma(lstKayit);
+            Panel kayitKap = new Panel { Dock = DockStyle.Fill, BackColor = Tema.Kart, Padding = new Padding(Tema.O(12)) };
             kayitKap.Controls.Add(lstKayit);
 
             btnIptal = Tema.Buton("İptal", false);
@@ -1858,6 +1943,179 @@ namespace SistemCheckup
             Bitir(p, o);
         }
 
+        // ---------------------------------------------------------------- canlı izleme
+        Izleyici izleyici;
+        Timer izlemeZaman;
+        bool izlemeMesgul;
+        CanliKart kCpu, kRam, kDisk, kAg, kSurecCpu, kSurecRam;
+        readonly List<CanliKart> kGpu = new List<CanliKart>();
+        List<string> gpuAdlari;
+        CekirdekKarti kCekirdek;
+        string cpuAdi = "", ramTuru = "";
+
+        void IzlemeKur()
+        {
+            if (izleyici != null) return;
+            object v = SonucuYukle();
+            Dictionary<int, string> diskAd = new Dictionary<int, string>();
+            foreach (object d in J.L(v, "diskler")) { int? no = J.I(d, "no"); if (no.HasValue) diskAd[no.Value] = J.S(d, "ad"); }
+            object m0 = J.L(J.Al(v, "ram"), "moduller").FirstOrDefault();
+            if (m0 != null) ramTuru = (J.S(m0, "tip") + " " + J.S(m0, "ayarliMHz") + " MHz").Trim();
+            try
+            {
+                using (Microsoft.Win32.RegistryKey k = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"HARDWARE\DESCRIPTION\System\CentralProcessor\0"))
+                    cpuAdi = ((k == null ? null : k.GetValue("ProcessorNameString")) ?? "").ToString().Trim();
+            }
+            catch { }
+            izleyici = new Izleyici(diskAd);
+            gpuAdlari = izleyici.GpuAdlari();
+
+            Panel p = Bosalt("izleme");
+            List<Control> o = new List<Control>();
+            o.Add(new Yazi("Canlı izleme", Tema.Baslik, Tema.Metin));
+            o.Add(new Yazi("Bilgisayarınızın şu anki kullanımı; her saniye güncellenir. Bu sekmeden çıkınca ölçüm durur ve bilgisayarı yormaz.", Tema.Normal, Tema.Soluk) { Padding = new Padding(0, Tema.O(4), 0, Tema.O(14)) });
+
+            kCpu = new CanliKart("İşlemci", 3, true);
+            kRam = new CanliKart("Bellek (RAM)", 3, true) { Renk = Tema.Mor };
+            kAg = new CanliKart("Ağ", 2, true) { Otomatik = true, GrafikEtiketi = "son 60 saniye  ·  mavi indirme, turuncu yükleme" };
+            kDisk = new CanliKart("Diskler", Math.Max(2, diskAd.Count), true) { Renk = Tema.Yesil, GrafikEtiketi = "son 60 saniye  ·  en yoğun diskin etkinliği" };
+            kSurecCpu = new CanliKart("En çok işlemci kullananlar", 6, false);
+            kSurecRam = new CanliKart("En çok bellek kullananlar", 6, false) { Renk = Tema.Mor };
+            kCekirdek = new CekirdekKarti();
+            kGpu.Clear();
+            foreach (string ad in gpuAdlari) kGpu.Add(new CanliKart("Ekran kartı  ·  " + ad, 3, true) { Renk = Tema.Turuncu });
+            if (kGpu.Count == 0) kGpu.Add(new CanliKart("Ekran kartı", 3, true) { Buyuk = "—", Alt = "kullanım bilgisi alınamadı" });
+
+            List<Control> kartlar = new List<Control> { kCpu };
+            kartlar.AddRange(kGpu);
+            kartlar.Add(kRam); kartlar.Add(kDisk); kartlar.Add(kAg);
+            // Tek sayıda kart kalırsa çekirdek grafiği boşluğu doldurur, yoksa tam genişlikte altta durur
+            if (kartlar.Count % 2 == 1) { kCekirdek.Height = kAg.Height; kartlar.Add(kCekirdek); }
+            for (int i = 0; i < kartlar.Count; i += 2)
+            {
+                Control sag = i + 1 < kartlar.Count ? kartlar[i + 1] : null;
+                o.Add(IkiSutun(kartlar[i], sag, Math.Max(kartlar[i].Height, sag != null ? sag.Height : 0)));
+            }
+            if (!kartlar.Contains(kCekirdek)) o.Add(kCekirdek);
+            o.Add(IkiSutun(kSurecCpu, kSurecRam, kSurecCpu.Height));
+            Bitir(p, o);
+
+            izlemeZaman = new Timer { Interval = 1000 };
+            izlemeZaman.Tick += (s, e) => IzlemeTick();
+        }
+
+        static string Hiz(double bps)
+        {
+            double mb = bps / 1048576.0;
+            return mb >= 1 ? mb.ToString(mb >= 100 ? "0" : "0.0", Tema.Tr) + " MB/s" : (bps / 1024.0).ToString("0", Tema.Tr) + " KB/s";
+        }
+
+        static string Mbit(double bps)
+        {
+            double m = bps * 8 / 1000000.0;
+            return m >= 1 ? m.ToString(m >= 100 ? "0" : "0.0", Tema.Tr) + " Mbit/s" : (bps * 8 / 1000.0).ToString("0", Tema.Tr) + " Kbit/s";
+        }
+
+        static string Boyut(double mb) { return mb >= 1024 ? (mb / 1024).ToString("0.0", Tema.Tr) + " GB" : mb.ToString("0", Tema.Tr) + " MB"; }
+
+        async void IzlemeTick()
+        {
+            if (izlemeMesgul || izleyici == null) return;
+            izlemeMesgul = true;
+            Olcum o = null;
+            List<string[]> enCpu = null, enRam = null;
+            try
+            {
+                Izleyici iz = izleyici;
+                o = await Task.Run(() =>
+                {
+                    Olcum x = iz.Olc();
+                    if (x.Surecler != null)
+                    {
+                        Func<SurecOlcum, string> ad = s => iz.UygulamaAdi(s.Ad) + (s.Adet > 1 ? "  (" + s.Adet + ")" : "");
+                        enCpu = x.Surecler.OrderByDescending(s => s.Cpu).Take(6).Select(s => new[] { ad(s), "%" + s.Cpu.ToString("0.0", Tema.Tr) + "   ·   " + Boyut(s.RamMB) }).ToList();
+                        enRam = x.Surecler.OrderByDescending(s => s.RamMB).Take(6).Select(s => new[] { ad(s), Boyut(s.RamMB) + "   ·   %" + s.Cpu.ToString("0.0", Tema.Tr) }).ToList();
+                    }
+                    return x;
+                });
+            }
+            catch { }
+            izlemeMesgul = false;
+            if (o == null || aktifSayfa != "izleme") return;
+
+            // İşlemci
+            kCpu.Buyuk = "%" + o.Cpu.ToString("0", Tema.Tr);
+            kCpu.Alt = o.CpuMHz.HasValue ? "kullanım  ·  " + o.CpuMHz.Value.ToString("N0", Tema.Tr) + " MHz" : "kullanım";
+            kCpu.Ekle(o.Cpu, null);
+            kCpu.Satirlar = new List<CanliKart.Satir>
+            {
+                new CanliKart.Satir { Sol = "Model", Sag = cpuAdi },
+                new CanliKart.Satir { Sol = "Çekirdek / izlek", Sag = Environment.ProcessorCount + " izlek" },
+                new CanliKart.Satir { Sol = "Sıcaklık", Sag = o.TermalC.HasValue ? o.TermalC.Value.ToString("0", Tema.Tr) + " °C  (anakart sensörü)" : "Windows bildirmiyor" },
+            };
+            kCpu.Not = "Çekirdek sıcaklığını Windows vermez (HWiNFO ile görülebilir).";
+            kCekirdek.Degerler = o.Cekirdekler;
+
+            // Ekran kartları (ad sırasına göre eşleşir)
+            for (int i = 0; i < kGpu.Count; i++)
+            {
+                CanliKart k = kGpu[i];
+                GpuOlcum g = i < gpuAdlari.Count ? o.Gpular.FirstOrDefault(x => x.Ad == gpuAdlari[i]) : null;
+                if (g == null) continue;
+                k.Buyuk = "%" + g.Kullanim.ToString("0", Tema.Tr);
+                k.Alt = "kullanım" + (g.Sicaklik.HasValue ? "  ·  " + g.Sicaklik.Value.ToString("0", Tema.Tr) + " °C" : "");
+                k.Ekle(g.Kullanim, null);
+                List<CanliKart.Satir> s = new List<CanliKart.Satir>();
+                if (g.VramKullanilanGB.HasValue)
+                    s.Add(new CanliKart.Satir { Sol = "Video belleği (VRAM)", Sag = g.VramKullanilanGB.Value.ToString("0.0", Tema.Tr) + (g.VramToplamGB.HasValue ? " / " + g.VramToplamGB.Value.ToString("0", Tema.Tr) : "") + " GB",
+                        Cubuk = g.VramToplamGB.HasValue && g.VramToplamGB > 0 ? 100 * g.VramKullanilanGB / g.VramToplamGB : null });
+                s.Add(new CanliKart.Satir { Sol = "Sıcaklık", Sag = g.Sicaklik.HasValue ? g.Sicaklik.Value.ToString("0", Tema.Tr) + " °C" : "bu kartın sürücüsü bildirmiyor" });
+                if (g.GucW.HasValue) s.Add(new CanliKart.Satir { Sol = "Güç", Sag = g.GucW.Value.ToString("0", Tema.Tr) + (g.GucLimitW.HasValue ? " / " + g.GucLimitW.Value.ToString("0", Tema.Tr) : "") + " W" + (g.SaatMHz.HasValue ? "   ·   " + g.SaatMHz.Value.ToString("N0", Tema.Tr) + " MHz" : "") });
+                else if (g.FanRPM > 0) s.Add(new CanliKart.Satir { Sol = "Fan", Sag = g.FanRPM.ToString("N0", Tema.Tr) + " RPM" });
+                k.Satirlar = s;
+                k.Not = g.FanYuzde.HasValue ? "Fan %" + g.FanYuzde.Value.ToString("0", Tema.Tr) + (g.FanYuzde == 0 ? " (düşük yükte fanlar durur, normal)" : "") : "";
+            }
+
+            // Bellek
+            kRam.Buyuk = "%" + o.RamYuzde.ToString("0", Tema.Tr);
+            kRam.Alt = o.RamKullanilanGB.ToString("0.0", Tema.Tr) + " / " + o.RamToplamGB.ToString("0.0", Tema.Tr) + " GB kullanımda";
+            kRam.Ekle(o.RamYuzde, null);
+            kRam.Satirlar = new List<CanliKart.Satir>
+            {
+                new CanliKart.Satir { Sol = "Boş", Sag = (o.RamToplamGB - o.RamKullanilanGB).ToString("0.0", Tema.Tr) + " GB" },
+                new CanliKart.Satir { Sol = "Ayrılan (sanal dahil)", Sag = o.TaahhutGB.ToString("0.0", Tema.Tr) + " / " + o.TaahhutLimitGB.ToString("0.0", Tema.Tr) + " GB", Cubuk = o.TaahhutLimitGB > 0 ? 100 * o.TaahhutGB / o.TaahhutLimitGB : (double?)null },
+                new CanliKart.Satir { Sol = "Tür", Sag = string.IsNullOrEmpty(ramTuru) ? "bir tarama yapınca görünür" : ramTuru },
+            };
+
+            // Diskler
+            double enYogun = o.Diskler.Count > 0 ? o.Diskler.Max(d => d.Etkinlik) : 0;
+            kDisk.Buyuk = "%" + enYogun.ToString("0", Tema.Tr);
+            kDisk.Alt = "en yoğun diskin etkinliği";
+            kDisk.Ekle(enYogun, null);
+            kDisk.Satirlar = o.Diskler.Select(d => new CanliKart.Satir { Sol = d.Ad, Cubuk = d.Etkinlik, Renk = Tema.Yesil, Sag = "oku " + Hiz(d.OkumaBps) + " · yaz " + Hiz(d.YazmaBps) }).ToList();
+
+            // Ağ
+            kAg.Buyuk = "↓ " + Mbit(o.AgIndirBps);
+            kAg.Alt = "↑ " + Mbit(o.AgYukleBps);
+            kAg.Ekle(o.AgIndirBps * 8 / 1000000.0, o.AgYukleBps * 8 / 1000000.0);
+            kAg.Satirlar = new List<CanliKart.Satir>
+            {
+                new CanliKart.Satir { Sol = "İndirme", Sag = Mbit(o.AgIndirBps) + "  (" + Hiz(o.AgIndirBps) + ")" },
+                new CanliKart.Satir { Sol = "Yükleme", Sag = Mbit(o.AgYukleBps) + "  (" + Hiz(o.AgYukleBps) + ")" },
+            };
+
+            // Süreçler (iki saniyede bir gelir)
+            if (enCpu != null)
+            {
+                kSurecCpu.Satirlar = enCpu.Select(x => new CanliKart.Satir { Sol = x[0], Sag = x[1] }).ToList();
+                kSurecRam.Satirlar = enRam.Select(x => new CanliKart.Satir { Sol = x[0], Sag = x[1] }).ToList();
+                kSurecCpu.Not = kSurecRam.Not = "Aynı programın birden çok parçası (ör. tarayıcı sekmeleri) tek satırda toplanır.";
+            }
+
+            foreach (Control c in new Control[] { kCpu, kRam, kDisk, kAg, kSurecCpu, kSurecRam, kCekirdek }) c.Invalidate();
+            foreach (CanliKart k in kGpu) k.Invalidate();
+        }
+
         // ---------------------------------------------------------------- temizlik
         void TemizlikKur()
         {
@@ -1872,7 +2130,7 @@ namespace SistemCheckup
             {
                 Kart kart = new Kart();
                 Panel ust = new Panel { Height = Tema.O(28), BackColor = Tema.Kart };
-                CheckBox chk = new CheckBox { Text = k.Ad, Font = Tema.Kalin, Checked = k.Varsayilan, AutoSize = true, Location = new Point(0, Tema.O(2)), BackColor = Tema.Kart };
+                CheckBox chk = new CheckBox { Text = k.Ad, Font = Tema.Kalin, ForeColor = Tema.Metin, Checked = k.Varsayilan, AutoSize = true, Location = new Point(0, Tema.O(2)), BackColor = Tema.Kart };
                 Label boyut = new Label { Text = "hesaplanıyor...", Font = Tema.Kalin, ForeColor = Tema.Soluk, AutoSize = false, Dock = DockStyle.Right, Width = Tema.O(150), TextAlign = ContentAlignment.MiddleRight, BackColor = Tema.Kart };
                 ust.Controls.Add(chk);
                 ust.Controls.Add(boyut);

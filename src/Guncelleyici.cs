@@ -115,6 +115,24 @@ namespace SistemCheckup
             FormClosing += (s, e) => { if (mesgul) { e.Cancel = true; Durum("Güncelleme sürerken kapatılamaz.", Kirmizi); } };
 
             KuruluGoster();
+            if (Ayarlar.Yukle().KoyuMu()) KoyuYap();
+        }
+
+        [System.Runtime.InteropServices.DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr h, int a, ref int v, int s);
+        bool koyu;
+
+        // Ana uygulamadaki koyu temayla aynı renkler
+        void KoyuYap()
+        {
+            koyu = true;
+            Color arka = Color.FromArgb(25, 28, 35), metin = Color.FromArgb(232, 234, 239), kenar = Color.FromArgb(58, 64, 78);
+            BackColor = arka;
+            foreach (Control c in Controls) if (c is TableLayoutPanel) c.BackColor = arka; else c.BackColor = Color.FromArgb(30, 36, 56);
+            lblKurulu.ForeColor = lblSon.ForeColor = metin;
+            txtNotlar.BackColor = Color.FromArgb(15, 17, 21); txtNotlar.ForeColor = metin;
+            lnkRepo.LinkColor = Color.FromArgb(120, 150, 255);
+            foreach (Button b in new[] { btnDenetle, btnBaslat }) { b.BackColor = arka; b.ForeColor = metin; b.FlatAppearance.BorderColor = kenar; }
+            HandleCreated += (s, e) => { int bir = 1; try { if (DwmSetWindowAttribute(Handle, 20, ref bir, 4) != 0) DwmSetWindowAttribute(Handle, 19, ref bir, 4); } catch { } };
         }
 
         void Butonla(Button b, string metin, bool ana)
@@ -145,7 +163,7 @@ namespace SistemCheckup
         void Durum(string metin, Color renk)
         {
             lblDurum.Text = metin;
-            lblDurum.ForeColor = renk;
+            lblDurum.ForeColor = koyu && renk == Color.DimGray ? Color.FromArgb(150, 157, 171) : renk;
         }
 
         void Mesgul(bool m)
@@ -154,7 +172,7 @@ namespace SistemCheckup
             btnDenetle.Enabled = !m;
             btnBaslat.Enabled = !m && File.Exists(Ortak.AnaUygulamaYolu);
             btnGuncelle.Enabled = !m && degisen.Count > 0;
-            btnGuncelle.BackColor = btnGuncelle.Enabled ? Vurgu : Color.FromArgb(178, 189, 232);
+            btnGuncelle.BackColor = btnGuncelle.Enabled ? Vurgu : (koyu ? Color.FromArgb(52, 62, 100) : Color.FromArgb(178, 189, 232));
             btnGuncelle.FlatAppearance.BorderColor = btnGuncelle.BackColor;
             UseWaitCursor = m;
         }
